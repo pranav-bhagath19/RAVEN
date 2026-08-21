@@ -6,12 +6,13 @@ and canonical FinancialEvent normalization.
 """
 
 from datetime import datetime, timezone
-import hmac
 import hashlib
+import hmac
 import uuid
 from typing import Any
-from domain.exceptions import DuplicateEventError, WebhookSignatureError
-from domain.state.event import FinancialEvent
+from domain.entities.financial_event import FinancialEvent
+from domain.exceptions import DuplicateEventIdentityError
+from domain.values.money import Money
 
 
 def verify_webhook_signature(raw_payload: bytes, signature_header: str | None, secret: str | None) -> bool:
@@ -77,18 +78,16 @@ class EventIngestionService:
         """
         Normalizes raw payload, enforces deduplication check, and appends to event log.
         """
-        event_hash = FinancialEvent.compute_hash(raw_payload)
+        event_hash = FinancialEvent.compute_canonical_hash(raw_payload)
 
-        # Extract gateway event ID if present in payload
         extracted_gateway_id = gateway_event_id or raw_payload.get("event_id") or raw_payload.get("id")
 
         if self.dedup_engine.is_duplicate(event_hash, extracted_gateway_id):
-            raise DuplicateEventError(
+            raise DuplicateEventIdentityError(
                 event_id=extracted_gateway_id or event_hash,
-                message=f"Event with hash '{event_hash[:8]}...' or gateway ID '{extracted_gateway_id}' already ingested"
+                message=f"Event with hash '{event_hash[:8]}...' or gateway ID '{extracted_gateway_id}' already ingested",
             )
 
-        # Extract entity IDs and metadata
         payment_payload = raw_payload.get("payment", {}).get("entity", raw_payload)
         entity_id = (
             raw_payload.get("payment_id")
@@ -100,8 +99,14 @@ class EventIngestionService:
         order_id = raw_payload.get("order_id") or payment_payload.get("order_id")
         merchant_id = raw_payload.get("merchant_id") or "mer_default"
         customer_id = raw_payload.get("customer_id") or payment_payload.get("customer_id")
-        amount = raw_payload.get("amount_paise") or raw_payload.get("amount") or payment_payload.get("amount")
-        currency = raw_payload.get("currency") or payment_payload.get("currency") or "INR"
+        raw_amount = raw_payload.get("amount_paise") or raw_payload.get("amount") or payment_payload.get("amount")
+        currency = str(raw_payload.get("currency") or payment_payload.get("currency") or "INR")
+
+        money_obj = (
+            Money(amount_minor=int(raw_amount), currency=currency)
+            if raw_amount is not None
+            else None
+        )
 
         event_timestamp = occurred_at or datetime.now(timezone.utc)
 
@@ -114,8 +119,7 @@ class EventIngestionService:
             order_id=order_id,
             merchant_id=merchant_id,
             customer_id=customer_id,
-            amount_minor_units=int(amount) if amount is not None else None,
-            currency=currency,
+            amount=money_obj,
             payload=raw_payload,
             occurred_at=event_timestamp,
             sequence_number=sequence_number,

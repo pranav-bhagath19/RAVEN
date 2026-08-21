@@ -2,15 +2,14 @@
 Unit tests for RAVEN Domain Entities
 """
 
-from datetime import datetime, timezone
 import pytest
 from pydantic import ValidationError
+from domain.payments.customer import Customer
 from domain.payments.merchant import Merchant, MerchantStatus
-from domain.payments.customer import Customer, CustomerCommunicationPreferences
-from domain.payments.order import Order, OrderStatus
-from domain.payments.payment import Payment, PaymentStatus
+from domain.payments.order import Order
+from domain.state.audit import ActorType, AuditEvent
 from domain.state.decision_trace import DecisionTrace, DecisionTraceStatus
-from domain.state.audit import AuditEvent, ActorType
+from domain.values.money import Money
 
 
 def test_merchant_creation_and_currency_validation():
@@ -44,29 +43,30 @@ def test_customer_creation_and_pii_masking():
 
 
 def test_order_balance_invariant_validation():
+    m_500 = Money(500000, "INR")
+    m_0 = Money(0, "INR")
+
     # Valid order: amount_paid (0) + amount_due (500000) == total amount (500000)
     order = Order(
         id="order_01H123",
         merchant_id="mer_01H123",
         customer_id="cust_01H123",
-        amount=500000,
-        amount_paid=0,
-        amount_due=500000,
-        currency="INR",
+        amount=m_500,
+        amount_paid=m_0,
+        amount_due=m_500,
     )
-    assert order.amount == 500000
+    assert order.amount == m_500
     assert not order.is_fully_paid()
 
-    # Invalid order: amount_paid (1000) + amount_due (500000) != amount (500000)
+    # Invalid order balance invariant raises ValidationError
     with pytest.raises(ValidationError) as exc_info:
         Order(
             id="order_01H123",
             merchant_id="mer_01H123",
             customer_id="cust_01H123",
-            amount=500000,
-            amount_paid=1000,
-            amount_due=500000,
-            currency="INR",
+            amount=m_500,
+            amount_paid=Money(1000, "INR"),
+            amount_due=m_500,
         )
     assert "Order balance invariant violated" in str(exc_info.value)
 

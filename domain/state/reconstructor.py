@@ -7,14 +7,16 @@ out-of-order event reordering, and conflict resolution logic.
 """
 
 from datetime import datetime, timezone
-from typing import Any
-from domain.payments.payment import Payment, PaymentAttempt, PaymentAttemptStatus, PaymentMethodType, PaymentStatus
-from domain.state.event import FinancialEvent
+from domain.entities.financial_event import FinancialEvent
+from domain.entities.payment import Payment, PaymentAttempt
+from domain.enums import PaymentAttemptStatus, PaymentMethodType, PaymentStatus
+from domain.exceptions import InvalidStateTransitionError
+from domain.values.money import Money
 
 
 class StateReconstructor:
     """
-    Deterministic Reconstructor evaluating event sequences to derive true Payment and Order state.
+    Deterministic Reconstructor evaluating event sequences to derive true Payment state.
     """
 
     @staticmethod
@@ -26,12 +28,10 @@ class StateReconstructor:
         """
         Reconstructs true Payment state by playing sorted FinancialEvent records.
         """
-        # Filter events for this payment ID
         payment_events = [
             e for e in events if e.entity_id == payment_id or e.payload.get("payment_id") == payment_id
         ]
 
-        # Multi-factor event sorting: occurred_at ASC, fallback to sequence_number ASC
         sorted_events = sorted(
             payment_events,
             key=lambda e: (e.occurred_at, e.sequence_number)
@@ -41,13 +41,18 @@ class StateReconstructor:
             payment = initial_payment.model_copy(deep=True)
         else:
             first_evt = sorted_events[0] if sorted_events else None
+            initial_money = (
+                first_evt.amount
+                if first_evt and first_evt.amount
+                else Money.zero(first_evt.currency if first_evt else "INR")
+            )
+
             payment = Payment(
                 id=payment_id,
                 order_id=first_evt.order_id if first_evt and first_evt.order_id else f"order_{payment_id}",
                 merchant_id=first_evt.merchant_id if first_evt else "mer_default",
                 customer_id=first_evt.customer_id if first_evt and first_evt.customer_id else "cust_default",
-                amount=first_evt.amount_minor_units if first_evt and first_evt.amount_minor_units else 0,
-                currency=first_evt.currency if first_evt else "INR",
+                amount=initial_money,
                 status=PaymentStatus.CREATED,
                 created_at=first_evt.occurred_at if first_evt else datetime.now(timezone.utc),
             )
@@ -58,53 +63,48 @@ class StateReconstructor:
             event_type = evt.event_type.lower()
             payload = evt.payload
 
-            # Check terminal state protection rule:
+            # Terminal state protection rule:
             # If current state is CAPTURED, ignore out-of-order FAILED events
             if payment.status == PaymentStatus.CAPTURED and "failed" in event_type:
-                # Out-of-order conflict rule: ignore late failed event after capture
                 continue
 
+            target_status: PaymentStatus | None = None
+
             if "captured" in event_type or "order.paid" in event_type:
-                payment.status = PaymentStatus.CAPTURED
-                payment.updated_at = evt.occurred_at
-
+                target_status = PaymentStatus.CAPTURED
             elif "authorized" in event_type:
-                if payment.status != PaymentStatus.CAPTURED:
-                    payment.status = PaymentStatus.AUTHORIZED
-                    payment.updated_at = evt.occurred_at
-
+                target_status = PaymentStatus.AUTHORIZED
             elif "failed" in event_type:
-                if payment.status != PaymentStatus.CAPTURED:
-                    payment.status = PaymentStatus.FAILED
-                    payment.updated_at = evt.occurred_at
-
-                    # Create PaymentAttempt record
-                    error_code = payload.get("error_code") or payload.get("error", {}).get("code") or "BAD_REQUEST_ERROR"
-                    error_desc = payload.get("error_description") or payload.get("error", {}).get("description") or "Payment failed"
-
-                    attempt = PaymentAttempt(
-                        id=f"att_{evt.id}",
-                        payment_id=payment_id,
-                        attempt_sequence=attempt_counter,
-                        payment_method_type=PaymentMethodType.CARD,
-                        status=PaymentAttemptStatus.FAILED,
-                        error_code=error_code,
-                        error_description=error_desc,
-                        gateway_reference=evt.gateway_event_id,
-                        initiated_at=evt.occurred_at,
-                        completed_at=evt.occurred_at,
-                    )
-                    payment.attempts.append(attempt)
-                    attempt_counter += 1
-
+                target_status = PaymentStatus.FAILED
             elif "refunded" in event_type:
-                if payment.status == PaymentStatus.CAPTURED:
-                    payment.status = PaymentStatus.REFUNDED
-                    payment.updated_at = evt.occurred_at
-
+                target_status = PaymentStatus.REFUNDED
             elif "pending" in event_type or "ambiguous" in event_type:
-                if payment.status not in (PaymentStatus.CAPTURED, PaymentStatus.REFUNDED):
-                    payment.status = PaymentStatus.AMBIGUOUS
-                    payment.updated_at = evt.occurred_at
+                target_status = PaymentStatus.AMBIGUOUS
+
+            if target_status and payment.status != target_status:
+                try:
+                    payment.transition_to(target_status, timestamp=evt.occurred_at)
+                except InvalidStateTransitionError:
+                    # Ignore illegal transition attempts on event replay
+                    pass
+
+            if "failed" in event_type:
+                error_code = payload.get("error_code") or payload.get("error", {}).get("code") or "BAD_REQUEST_ERROR"
+                error_desc = payload.get("error_description") or payload.get("error", {}).get("description") or "Payment failed"
+
+                attempt = PaymentAttempt(
+                    id=f"att_{evt.id}",
+                    payment_id=payment_id,
+                    attempt_sequence=attempt_counter,
+                    payment_method_type=PaymentMethodType.CARD,
+                    status=PaymentAttemptStatus.FAILED,
+                    error_code=error_code,
+                    error_description=error_desc,
+                    gateway_reference=evt.gateway_event_id,
+                    initiated_at=evt.occurred_at,
+                    completed_at=evt.occurred_at,
+                )
+                payment.attempts.append(attempt)
+                attempt_counter += 1
 
         return payment
