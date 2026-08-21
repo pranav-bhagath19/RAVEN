@@ -13,11 +13,12 @@ In digital payment systems, transaction failures, subscription drops, authorizat
 
 ## Architectural Principles
 
-1. **Deterministic Financial Logic**: All monetary values are processed strictly in integer minor units (`paise`). Financial math and state machines are 100% deterministic.
-2. **AI Boundary Isolation**: AI agents generate contextual diagnoses and candidate recovery plans, but have zero authority to execute side-effects or override business rules directly.
-3. **Non-Bypassable Policy Engine**: Every autonomous recovery action must pass deterministic policy checks before execution. Policies hold absolute veto power.
-4. **Asynchronous Robustness**: Event processing engine is designed for out-of-order, delayed, and duplicated webhooks via state replay and cryptographic deduplication.
-5. **Verifiable Evaluation**: System recovery performance is evaluated against seeded synthetic ground truth streams across 5 standardized baselines.
+1. **Event Log & Asynchronous Robustness**: Financial state is deterministically reconstructed from normalized financial events. Webhook arrival order must not be treated as financial event order.
+2. **Deterministic Financial Logic**: All monetary values are represented as integer minor units such as paise. Storage types will be selected during implementation based on domain constraints.
+3. **AI Boundary Isolation & Safety**: AI agents operate within reasoning boundaries (root-cause diagnosis, evidence synthesis, candidate action generation). AI failures will never automatically result in an unsafe financial side effect.
+4. **Non-Bypassable Policy Engine**: Every autonomous recovery action proposed by an agent must pass deterministic policy evaluation before execution. Policies hold absolute veto authority and issue signed `PolicyApprovalToken`s for approved side-effects.
+5. **DecisionTrace & Append-Only Audit Events**: Operations produce append-only audit events with controlled write access and integrity protections. A first-class `DecisionTrace` domain entity captures the complete lineage from event ingestion through policy approval to verification outcome.
+6. **Verifiable Evaluation**: System recovery performance is evaluated against seeded synthetic ground truth streams across 5 standardized baselines.
 
 ---
 
@@ -33,9 +34,9 @@ In digital payment systems, transaction failures, subscription drops, authorizat
                           │
                           ▼
 ┌─────────────────────────────────────────────────────────┐
-│     2. Event Sourcing & State Reconstruction Engine     │
+│     2. Event Log & State Reconstruction Engine          │
 └─────────────────────────┬───────────────────────────────┘
-                          │ State & Risk Flag
+                          │ Reconstructed State & Risk Triggers
                           ▼
 ┌─────────────────────────────────────────────────────────┐
 │     3. Autonomous Agent Trio (Context & Planning)       │
@@ -43,15 +44,15 @@ In digital payment systems, transaction failures, subscription drops, authorizat
 │        - Recovery Planner Agent                         │
 │        - Verification Agent                             │
 └─────────────────────────┬───────────────────────────────┘
-                          │ Proposed Recovery Action
+                          │ Proposed Candidate Action
                           ▼
 ┌─────────────────────────────────────────────────────────┐
 │     4. Deterministic Policy Engine (Absolute Veto)      │
 └─────────────────────────┬───────────────────────────────┘
-                          │ Approved Token Only
+                          │ Ephemeral PolicyApprovalToken
                           ▼
 ┌─────────────────────────────────────────────────────────┐
-│     5. Tool Execution & Immutable Audit Ledger          │
+│     5. Tool Candidates Execution & DecisionTrace Ledger │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -63,37 +64,25 @@ The repository architecture and design specifications are documented in detail w
 
 - [**Architecture Specification**](file:///c:/Users/prana/Documents/RAVEN/docs/architecture.md): Overall system structure, component boundaries, and data flow.
 - [**Domain Model Specification**](file:///c:/Users/prana/Documents/RAVEN/docs/domain-model.md): Specifications for entities, fields, relationships, and invariants.
-- [**Event Architecture**](file:///c:/Users/prana/Documents/RAVEN/docs/event-architecture.md): Webhook ingestion, cryptographic deduplication, and event replay state reconstruction.
-- [**Agent Architecture**](file:///c:/Users/prana/Documents/RAVEN/docs/agent-architecture.md): Roles, contracts, tools, constraints, and escalation behavior for the 3 agents.
-- [**Tool Architecture**](file:///c:/Users/prana/Documents/RAVEN/docs/tool-architecture.md): Contracts for all 17 system and side-effect tools.
+- [**DecisionTrace Specification**](file:///c:/Users/prana/Documents/RAVEN/docs/decision-trace.md): Complete lineage tracing from event ingestion to verification outcome.
+- [**Event Architecture**](file:///c:/Users/prana/Documents/RAVEN/docs/event-architecture.md): Normalized event log, identity deduplication, and multi-factor state reconstruction.
+- [**Agent Architecture**](file:///c:/Users/prana/Documents/RAVEN/docs/agent-architecture.md): Roles, contracts, tool candidates, failure modes, and safety fallbacks.
+- [**Tool Architecture & Candidate Contracts**](file:///c:/Users/prana/Documents/RAVEN/docs/tool-architecture.md): Framing and contracts for candidate tools vs internal domain services.
 - [**Policy Engine Specification**](file:///c:/Users/prana/Documents/RAVEN/docs/policy-engine.md): Deterministic rules, veto authority, and approval token security.
+- [**AI Observability Specification**](file:///c:/Users/prana/Documents/RAVEN/docs/ai-observability.md): Telemetry, model versioning, latency, and PII masking.
+- [**Code Quality Standards**](file:///c:/Users/prana/Documents/RAVEN/docs/code-quality.md): Python typing, Ruff linting, MyPy/Pyright static analysis, and test quality requirements.
 - [**Evaluation Framework**](file:///c:/Users/prana/Documents/RAVEN/docs/evaluation.md): Quantitative metrics and comparative 5-baseline evaluation methodology.
 - [**Data Strategy & Simulator**](file:///c:/Users/prana/Documents/RAVEN/docs/data-strategy.md): Synthetic stream generation, edge case scenarios, and ground truth schemas.
 - [**Razorpay Integration Boundaries**](file:///c:/Users/prana/Documents/RAVEN/docs/razorpay-integration.md): Boundary definition between simulator and Razorpay test/live modes.
 - [**Security & Compliance Model**](file:///c:/Users/prana/Documents/RAVEN/docs/security.md): Threat modeling, signature verification, RBAC, and PII masking.
 - [**Testing Strategy**](file:///c:/Users/prana/Documents/RAVEN/docs/testing.md): Multi-tier test suite matrix and edge case assertion rules.
 - [**Implementation Roadmap**](file:///c:/Users/prana/Documents/RAVEN/docs/roadmap.md): Phased deliverables, dependencies, and acceptance criteria.
-
----
-
-## Repository Structure
-
-```text
-raven/
-├── apps/               # API server & dashboard frontend
-├── agents/             # Root Cause, Recovery Planner, and Verifier agents
-├── domain/             # Entities, payment models, state reconstruction
-├── ml/                 # Feature extraction, models, evaluation scripts
-├── tools/              # Unified tool contracts & gateway adapters
-├── policies/           # Deterministic policy rules & token engine
-├── events/             # Webhook ingestion, normalization, deduplication
-├── simulator/          # Synthetic event generator & ground truth streams
-├── data/               # Raw & processed synthetic evaluation datasets
-├── evaluation/         # Benchmark results & comparison metrics
-├── tests/              # Multi-tier pytest suite
-├── docs/               # Comprehensive architecture specifications
-└── infra/              # Deployment & environment configurations
-```
+- [**Architecture Decision Records (ADRs)**](file:///c:/Users/prana/Documents/RAVEN/docs/adr/):
+  - [ADR-001: Deterministic Policy Engine Boundary](file:///c:/Users/prana/Documents/RAVEN/docs/adr/ADR-001-deterministic-policy-boundary.md)
+  - [ADR-002: Financial State Reconstruction](file:///c:/Users/prana/Documents/RAVEN/docs/adr/ADR-002-financial-state-reconstruction.md)
+  - [ADR-003: Agent Boundaries and Trio Isolation](file:///c:/Users/prana/Documents/RAVEN/docs/adr/ADR-003-agent-boundaries.md)
+  - [ADR-004: Monetary Representation in Integer Minor Units](file:///c:/Users/prana/Documents/RAVEN/docs/adr/ADR-004-monetary-representation.md)
+  - [ADR-005: LLM Provider Abstraction Layer](file:///c:/Users/prana/Documents/RAVEN/docs/adr/ADR-005-llm-provider-abstraction.md)
 
 ---
 

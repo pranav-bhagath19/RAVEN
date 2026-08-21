@@ -4,15 +4,20 @@
 
 **RAVEN — Revenue-aware Autonomous Verification & ENgine** is an AI-powered revenue intelligence and autonomous recovery system built for payment processing ecosystems (specifically targeted at the Razorpay ecosystem under the AI Revenue Recovery track).
 
-In payment processing systems, transaction failure rates, subscription drops, authorization timeouts, and asynchronous webhooks frequently create "revenue leakage" (unrecovered legitimate revenue) and "revenue at risk" (transactions stalled in intermediate/failed states that could be saved). 
-
-RAVEN ingests financial events, reconstructs true transaction and account states from out-of-order and duplicated webhooks, diagnoses root causes of failure, plans bounded recovery interventions, enforces strict deterministic business policies, executes authorized recovery actions, and verifies true financial recovery with auditable verification loops.
+In payment processing systems, transaction failure rates, subscription drops, authorization timeouts, and asynchronous webhooks frequently create revenue leakage and revenue at risk. RAVEN ingests financial events, reconstructs true transaction and customer states from out-of-order and duplicated events, diagnoses failure root causes, plans bounded recovery interventions, enforces strict deterministic business policies, executes authorized recovery actions, and verifies true financial recovery with queryable decision traces.
 
 ---
 
-## 2. Major Components & Responsibilities
+## 2. Core Architectural Principles & Boundaries
 
-RAVEN consists of four distinct architectural layers:
+1. **Event Log & Asynchronous Robustness**: Financial state is deterministically reconstructed from normalized financial events. Webhook arrival order must not be treated as financial event order.
+2. **Deterministic vs. AI/ML Boundaries**: LLMs operate strictly within reasoning boundaries (root-cause diagnosis, evidence synthesis, candidate action generation, and reasoning explanations). LLMs never directly control monetary calculations, policy enforcement, authorization, or side-effects.
+3. **Non-Bypassable Policy Engine**: Every autonomous action proposed by an agent must pass deterministic policy evaluation before execution. Policies hold absolute veto authority.
+4. **Append-Only Audit Events & DecisionTrace**: Operations produce append-only audit events with controlled write access and integrity protections. A first-class `DecisionTrace` entity captures the complete lineage from event ingestion through policy approval to verification outcome.
+
+---
+
+## 3. Major Components & Responsibilities
 
 ```
 [ External Webhook / Simulator Stream ]
@@ -21,7 +26,7 @@ RAVEN consists of four distinct architectural layers:
 ┌─────────────────────────────────────────────────────────┐
 │              DETERMINISTIC INGESTION & STATE            │
 │  - Event Ingestion & Deduplication (Idempotency Key)   │
-│  - Event Replay & State Reconstruction Engine           │
+│  - Normalized Event Log & State Reconstructor          │
 │  - Revenue Risk Detector (Deterministic Rule Filters)   │
 └─────────────────────────┬───────────────────────────────┘
                           │ Event Stream / Risk Trigger
@@ -32,110 +37,42 @@ RAVEN consists of four distinct architectural layers:
 │  - Recovery Planner (Candidate Action Generation)       │
 │  - Verification Agent (Financial State Validation)      │
 └─────────────────────────┬───────────────────────────────┘
-                          │ Proposed Recovery Action + Confidence
+                          │ Proposed Candidate Action + Confidence
                           ▼
 ┌─────────────────────────────────────────────────────────┐
 │              DETERMINISTIC POLICY ENGINE                │
 │  - Policy Verification (Limits, State Checks, Opt-out)  │
 │  - Policy Decision: APPROVE / BLOCK / ESCALATE         │
 └─────────────────────────┬───────────────────────────────┘
-                          │ Approved Side-Effects Only
+                          │ Ephemeral PolicyApprovalToken
                           ▼
 ┌─────────────────────────────────────────────────────────┐
-│           SIDE-EFFECT EXECUTION & AUDIT TRAIL           │
-│  - Razorpay Gateway API / Simulator Tool Execution      │
-│  - Immutable Audit Event Logging                        │
+│         SIDE-EFFECT EXECUTION & DECISION TRACE          │
+│  - Tool Candidate Execution (Gateway / Communication)   │
+│  - Append-Only Audit Event Logging & DecisionTrace      │
 └─────────────────────────────────────────────────────────┘
 ```
 
-### Component Summary
+---
 
-1. **Deterministic Ingestion & State Reconstruction Engine (`domain/state`, `events/`)**:
-   - Ingests incoming payment events (webhooks, API logs, simulator events).
-   - Deduplicates incoming events using cryptographic content hashing and idempotency keys.
-   - Computes true entity state (Order, Payment, Customer, Subscription) by deterministic event replay.
+## 4. End-to-End Decision Lifecycle
 
-2. **Revenue Risk Detector (`domain/revenue/`)**:
-   - Identifies payment attempts stuck in intermediate failed/abandoned states where recoverable revenue is identified.
+RAVEN provides complete queryable traceability across the decision lifecycle:
 
-3. **Autonomous Agent Trio (`agents/`)**:
-   - **Root Cause Analyst**: Synthesizes customer payment history, issuer error codes, network latency logs, and failure trends to explain *why* revenue is at risk.
-   - **Recovery Planner**: Evaluates candidate interventions (e.g., smart retry timing, payment link dispatch, fallback channel notification) and estimates expected recovery value (\(EV = P(\text{success}) \times \text{Value} - \text{InterventionCost}\)).
-   - **Verification Agent**: Validates whether executed actions converted target transactions into captured funds.
+$$\text{EVENT} \rightarrow \text{STATE} \rightarrow \text{REVENUE RISK} \rightarrow \text{ROOT CAUSE} \rightarrow \text{CANDIDATE ACTIONS} \rightarrow \text{EXPECTED VALUE} \rightarrow \text{POLICY} \rightarrow \text{DECISION} \rightarrow \text{EXECUTION} \rightarrow \text{VERIFICATION} \rightarrow \text{OUTCOME}$$
 
-4. **Deterministic Policy Engine (`policies/`)**:
-   - Evaluates candidate actions against non-bypassable merchant rules (e.g., max retries, captured payment guards, high-value transaction limits, customer consent).
-
-5. **Tool Architecture & Side-Effect Dispatcher (`tools/`)**:
-   - Encapsulates Razorpay API calls, communication dispatches, and state updates with explicit permissions and idempotency constraints.
-
-6. **Immutable Audit System (`domain/state/audit.py`)**:
-   - Logs every event ingestion, state transition, agent reasoning payload, policy evaluation outcome, tool execution, and verification check.
+This lifecycle is captured in the [`DecisionTrace`](file:///c:/Users/prana/Documents/RAVEN/docs/decision-trace.md) domain entity.
 
 ---
 
-## 3. Data & Event Flow
+## 5. Candidate Tool Contracts & Domain Services
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant Gateway as Webhook / Gateway
-    participant Ingestion as Ingestion Engine
-    participant State as State Reconstructor
-    participant Agent as Agent Trio (LLM)
-    participant Policy as Policy Engine
-    participant Tools as Tool Dispatcher
-    participant Audit as Audit System
-
-    Gateway->>Ingestion: Ingest Webhook Event
-    Ingestion->>Audit: Log Raw Ingestion Event
-    Ingestion->>State: Normalize & Deduplicate
-    State->>State: Reconstruct True State
-    State->>Agent: Trigger Revenue Risk Evaluation
-    Agent->>Agent: Root Cause & Action Generation
-    Agent->>Policy: Submit Candidate Recovery Action
-    alt Policy Approved
-        Policy->>Tools: Execute Action (Payment Link / Retry)
-        Tools->>Gateway: API Dispatch
-        Tools->>Audit: Record Tool Execution & Outcome
-        Tools->>Agent: Trigger Verification Agent
-    else Policy Blocked / Low Confidence
-        Policy->>Audit: Record Policy Block / Escalation
-        Policy->>Tools: Dispatch Escalation Ticket to Human
-    end
-```
+Capabilities in RAVEN are divided into **LLM-facing Candidate Tools** and **Internal Domain Services**. Agents interact only with candidate tools exposed via explicitly defined schemas. Side-effect tools require a valid `PolicyApprovalToken` to execute operations.
 
 ---
 
-## 4. Deterministic vs. AI/ML Boundary
-
-A core principle of RAVEN is strict architectural isolation between deterministic logic and LLM operations.
-
-| Operational Task | Layer | Justification |
-| :--- | :--- | :--- |
-| Monetary Calculation | **Deterministic** | Floating-point or probabilistic model drift in financial math is intolerable. All balances computed in integer minor units (`paise`). |
-| Event Deduplication | **Deterministic** | Must strictly enforce exact-once state updates via hash verification. |
-| Payment State Reconstruction | **Deterministic** | State machine transitions (`CREATED` → `AUTHORIZED` → `CAPTURED`) follow immutable state invariants. |
-| Signature Verification | **Deterministic** | HMAC-SHA256 signature verification must be exact. |
-| Root Cause Synthesis | **AI / ML** | Unstructured error logs, historical issuer behavior, and multi-factor context require pattern matching and reasoning. |
-| Candidate Recovery Generation | **AI / ML** | Contextual ranking of retry timing, message personalization, and channel selection benefits from semantic reasoning. |
-| Policy Enforcement | **Deterministic** | Hard bounds (max 3 retries, no retries on already-captured funds, spending caps) must **never** be overridable by prompt injection or model hallucination. |
-| Side-Effect Execution | **Deterministic** | Tool calls require validated parameters and policy token verification before executing API calls. |
-| Audit Logging | **Deterministic** | Append-only, tamper-evident record keeping. |
-
----
-
-## 5. External Integration vs. Synthetic Simulator Boundary
-
-To ensure development rigor without reliance on live production keys during testing, RAVEN defines a strict abstraction boundary:
+## 6. Integration vs. Simulation Boundaries
 
 - **`simulator/`**: Local deterministic event producer generating complex edge cases (duplicate webhooks, out-of-order delivery, transient gateway timeouts, bank downtimes).
 - **`apps/api/webhooks/`**: Production/Test mode webhook receiver that validates HMAC signatures against Razorpay headers (`X-Razorpay-Signature`).
-- **`tools/`**: Implements a unified adapter interface (`PaymentGatewayAdapter`). In simulation mode, it routes commands to `SimulatorGatewayAdapter`; in Razorpay mode, it routes commands to `RazorpayGatewayAdapter`.
-
----
-
-## 6. Frontend / Backend Boundary
-
-- **Backend (`apps/api`)**: Python (FastAPI / Pydantic) delivering REST endpoints for event ingestion, agent execution control, policy configuration, and evaluation reporting.
-- **Frontend (`apps/dashboard`)**: Single Page Dashboard (HTML/JS or React/Vite) interacting with backend via REST JSON APIs to visualize transaction state graphs, real-time risk queues, active agent reasoning paths, policy block events, and recovery performance metrics.
+- **`tools/`**: Unified adapter interface (`PaymentGatewayAdapter`). Routes to `SimulatorGatewayAdapter` in simulation mode and `RazorpayGatewayAdapter` in Razorpay mode.
