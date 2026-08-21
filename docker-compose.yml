@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  raven-api:
+    build: .
+    container_name: raven-api
+    ports:
+      - "8000:8000"
+    environment:
+      - RAVEN_ENV=${RAVEN_ENV:-production}
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - DATABASE_URL=postgresql://raven_user:raven_pass@postgres:5432/raven_db
+      - REDIS_URL=redis://redis:6379/0
+      - RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID:-rzp_test_placeholder}
+      - RAZORPAY_KEY_SECRET=${RAZORPAY_KEY_SECRET:-placeholder_secret}
+      - RAZORPAY_WEBHOOK_SECRET=${RAZORPAY_WEBHOOK_SECRET:-placeholder_webhook_secret}
+      - RAVEN_POLICY_SECRET=${RAVEN_POLICY_SECRET:-raven_policy_secret_key_2026}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: ["uvicorn", "apps.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+  raven-worker:
+    build: .
+    container_name: raven-worker
+    environment:
+      - RAVEN_ENV=${RAVEN_ENV:-production}
+      - DATABASE_URL=postgresql://raven_user:raven_pass@postgres:5432/raven_db
+      - REDIS_URL=redis://redis:6379/0
+      - RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID:-rzp_test_placeholder}
+      - RAZORPAY_KEY_SECRET=${RAZORPAY_KEY_SECRET:-placeholder_secret}
+      - RAVEN_POLICY_SECRET=${RAVEN_POLICY_SECRET:-raven_policy_secret_key_2026}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: ["python", "-c", "from apps.worker.worker import RecoveryWorker; RecoveryWorker().run_loop()"]
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: raven-postgres
+    environment:
+      POSTGRES_USER: raven_user
+      POSTGRES_PASSWORD: raven_pass
+      POSTGRES_DB: raven_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U raven_user -d raven_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: raven-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

@@ -11,7 +11,7 @@ import hmac
 import uuid
 from typing import Any
 from domain.entities.financial_event import FinancialEvent
-from domain.exceptions import DuplicateEventIdentityError
+from domain.exceptions import DuplicateEventError
 from domain.values.money import Money
 
 
@@ -69,21 +69,37 @@ class EventIngestionService:
 
     def ingest_event(
         self,
-        raw_payload: dict[str, Any],
-        event_type: str,
+        raw_payload: FinancialEvent | dict[str, Any],
+        event_type: str | None = None,
         gateway_event_id: str | None = None,
         occurred_at: datetime | None = None,
         sequence_number: int = 1,
     ) -> FinancialEvent:
         """
-        Normalizes raw payload, enforces deduplication check, and appends to event log.
+        Normalizes raw payload or FinancialEvent entity, enforces deduplication check,
+        and appends to event log. Raises DuplicateEventError if duplicate.
         """
-        event_hash = FinancialEvent.compute_canonical_hash(raw_payload)
+        if isinstance(raw_payload, FinancialEvent):
+            financial_event = raw_payload
+            event_hash = financial_event.event_hash
+            extracted_gateway_id = financial_event.gateway_event_id
 
+            if self.dedup_engine.is_duplicate(event_hash, extracted_gateway_id):
+                raise DuplicateEventError(
+                    event_id=extracted_gateway_id or event_hash,
+                    message=f"Event with hash '{event_hash[:8]}...' or gateway ID '{extracted_gateway_id}' already ingested",
+                )
+
+            self.dedup_engine.register(event_hash, extracted_gateway_id)
+            self.ingested_events.append(financial_event)
+            return financial_event
+
+        target_event_type = event_type or raw_payload.get("event_type", "payment.failed")
+        event_hash = FinancialEvent.compute_canonical_hash(raw_payload)
         extracted_gateway_id = gateway_event_id or raw_payload.get("event_id") or raw_payload.get("id")
 
         if self.dedup_engine.is_duplicate(event_hash, extracted_gateway_id):
-            raise DuplicateEventIdentityError(
+            raise DuplicateEventError(
                 event_id=extracted_gateway_id or event_hash,
                 message=f"Event with hash '{event_hash[:8]}...' or gateway ID '{extracted_gateway_id}' already ingested",
             )
@@ -113,7 +129,7 @@ class EventIngestionService:
         financial_event = FinancialEvent(
             id=f"evt_{uuid.uuid4().hex[:12]}",
             event_hash=event_hash,
-            event_type=event_type,
+            event_type=target_event_type,
             gateway_event_id=extracted_gateway_id,
             entity_id=entity_id,
             order_id=order_id,
@@ -129,3 +145,7 @@ class EventIngestionService:
         self.ingested_events.append(financial_event)
 
         return financial_event
+
+    def get_events_for_entity(self, entity_id: str) -> list[FinancialEvent]:
+        """Returns all ingested events matching entity_id."""
+        return [e for e in self.ingested_events if e.entity_id == entity_id]

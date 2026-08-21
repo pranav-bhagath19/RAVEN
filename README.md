@@ -1,101 +1,152 @@
 # RAVEN — Revenue-aware Autonomous Verification & ENgine
 
-> **Razorpay AI Buildathon — AI Revenue Recovery Track**  
-> *Status: Architectural Specification & Foundation Phase (Under Active Development)*
-
-## Overview
-
-**RAVEN** (Revenue-aware Autonomous Verification & ENgine) is a prototype AI-powered revenue intelligence and autonomous recovery system designed for payment processing ecosystems. 
-
-In digital payment systems, transaction failures, subscription drops, authorization timeouts, and asynchronous network errors frequently cause unrecovered revenue leakage. RAVEN provides an architectural framework to ingest financial events, reconstruct transaction state from out-of-order webhooks, diagnose failure root causes, plan bounded recovery interventions, enforce deterministic business policies, and verify financial outcomes.
+**RAVEN** is a production-shaped, zero-trust autonomous revenue recovery engine built for payment gateways, merchants, and financial infrastructure. Developed for the **Razorpay AI Buildathon** under the **AI Revenue Recovery** track.
 
 ---
 
-## Architectural Principles
+## 1. The Problem
 
-1. **Event Log & Asynchronous Robustness**: Financial state is deterministically reconstructed from normalized financial events. Webhook arrival order must not be treated as financial event order.
-2. **Deterministic Financial Logic**: All monetary values are represented as integer minor units such as paise. Storage types will be selected during implementation based on domain constraints.
-3. **AI Boundary Isolation & Safety**: AI agents operate within reasoning boundaries (root-cause diagnosis, evidence synthesis, candidate action generation). AI failures will never automatically result in an unsafe financial side effect.
-4. **Non-Bypassable Policy Engine**: Every autonomous recovery action proposed by an agent must pass deterministic policy evaluation before execution. Policies hold absolute veto authority and issue signed `PolicyApprovalToken`s for approved side-effects.
-5. **DecisionTrace & Append-Only Audit Events**: Operations produce append-only audit events with controlled write access and integrity protections. A first-class `DecisionTrace` domain entity captures the complete lineage from event ingestion through policy approval to verification outcome.
-6. **Verifiable Evaluation**: System recovery performance is evaluated against seeded synthetic ground truth streams across 5 standardized baselines.
+Payment failures (transient gateway timeouts, network drops, issuer downtime, card limits) cause massive revenue leakage for merchants. Naive automated retries or unconstrained AI agents introduce severe financial & operational risks:
+
+- **Duplicate Charges**: Retrying payments without terminal state verification.
+- **Communication Spam**: Repeated customer alerts causing opt-out violations.
+- **Outage Flooding**: Retrying transactions during systemic bank outages.
+- **Misattribution**: Claiming credit for organic customer retries.
+- **Dangerous Unconstrained AI**: Giving LLMs direct side-effect authority over real money.
 
 ---
 
-## High-Level System Architecture
+## 2. The Solution: Architectural Isolation
+
+RAVEN strictly separates **AI Reasoning** from **Deterministic Financial Authority**:
 
 ```
-[ Asynchronous Event Stream / Webhook ]
-                  │
-                  ▼
-┌─────────────────────────────────────────────────────────┐
-│     1. Deterministic Ingestion & Event Deduplication    │
-└─────────────────────────┬───────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────┐
-│     2. Event Log & State Reconstruction Engine          │
-└─────────────────────────┬───────────────────────────────┘
-                          │ Reconstructed State & Risk Triggers
-                          ▼
-┌─────────────────────────────────────────────────────────┐
-│     3. Autonomous Agent Trio (Context & Planning)       │
-│        - Root Cause Analyst Agent                       │
-│        - Recovery Planner Agent                         │
-│        - Verification Agent                             │
-└─────────────────────────┬───────────────────────────────┘
-                          │ Proposed Candidate Action
-                          ▼
-┌─────────────────────────────────────────────────────────┐
-│     4. Deterministic Policy Engine (Absolute Veto)      │
-└─────────────────────────┬───────────────────────────────┘
-                          │ Ephemeral PolicyApprovalToken
-                          ▼
-┌─────────────────────────────────────────────────────────┐
-│     5. Tool Candidates Execution & DecisionTrace Ledger │
-└─────────────────────────────────────────────────────────┘
+Razorpay Webhook (HTTP POST)
+        │
+        ▼
+Signature Verification (HMAC-SHA256)
+        │
+        ▼
+Event Ingestion + Content Hash Deduplication
+        │
+        ▼
+State Reconstruction Engine (Non-timestamp Sequence Tie-Breaking)
+        │
+        ▼
+Root Cause Analyst (LLM / Deterministic Heuristic Fallback)
+        │
+        ▼
+Recovery Planner & Deterministic Expected Value Calculator
+        │
+        ▼
+Deterministic Policy Engine (Non-bypassable Veto Authority)
+        │
+        ▼
+HMAC-SHA256 PolicyApprovalToken Issuance
+        │
+        ▼
+ToolExecutor (Sole Execution Boundary Requiring Valid Token)
+        │
+        ▼
+Deterministic Verification Agent (Attribution Precision)
+        │
+        ▼
+DecisionTrace Lineage Logging ──► Operations Control Plane Dashboard
 ```
 
 ---
 
-## System Documentation Index
+## 3. Key Invariants & Safeguards
 
-The repository architecture and design specifications are documented in detail within the [`docs/`](file:///c:/Users/prana/Documents/RAVEN/docs) directory:
-
-- [**Architecture Specification**](file:///c:/Users/prana/Documents/RAVEN/docs/architecture.md): Overall system structure, component boundaries, and data flow.
-- [**Domain Model Specification**](file:///c:/Users/prana/Documents/RAVEN/docs/domain-model.md): Specifications for entities, fields, relationships, and invariants.
-- [**DecisionTrace Specification**](file:///c:/Users/prana/Documents/RAVEN/docs/decision-trace.md): Complete lineage tracing from event ingestion to verification outcome.
-- [**Event Architecture**](file:///c:/Users/prana/Documents/RAVEN/docs/event-architecture.md): Normalized event log, identity deduplication, and multi-factor state reconstruction.
-- [**Agent Architecture**](file:///c:/Users/prana/Documents/RAVEN/docs/agent-architecture.md): Roles, contracts, tool candidates, failure modes, and safety fallbacks.
-- [**Tool Architecture & Candidate Contracts**](file:///c:/Users/prana/Documents/RAVEN/docs/tool-architecture.md): Framing and contracts for candidate tools vs internal domain services.
-- [**Policy Engine Specification**](file:///c:/Users/prana/Documents/RAVEN/docs/policy-engine.md): Deterministic rules, veto authority, and approval token security.
-- [**AI Observability Specification**](file:///c:/Users/prana/Documents/RAVEN/docs/ai-observability.md): Telemetry, model versioning, latency, and PII masking.
-- [**Code Quality Standards**](file:///c:/Users/prana/Documents/RAVEN/docs/code-quality.md): Python typing, Ruff linting, MyPy/Pyright static analysis, and test quality requirements.
-- [**Evaluation Framework**](file:///c:/Users/prana/Documents/RAVEN/docs/evaluation.md): Quantitative metrics and comparative 5-baseline evaluation methodology.
-- [**Data Strategy & Simulator**](file:///c:/Users/prana/Documents/RAVEN/docs/data-strategy.md): Synthetic stream generation, edge case scenarios, and ground truth schemas.
-- [**Razorpay Integration Boundaries**](file:///c:/Users/prana/Documents/RAVEN/docs/razorpay-integration.md): Boundary definition between simulator and Razorpay test/live modes.
-- [**Security & Compliance Model**](file:///c:/Users/prana/Documents/RAVEN/docs/security.md): Threat modeling, signature verification, RBAC, and PII masking.
-- [**Testing Strategy**](file:///c:/Users/prana/Documents/RAVEN/docs/testing.md): Multi-tier test suite matrix and edge case assertion rules.
-- [**Implementation Roadmap**](file:///c:/Users/prana/Documents/RAVEN/docs/roadmap.md): Phased deliverables, dependencies, and acceptance criteria.
-- [**Architecture Decision Records (ADRs)**](file:///c:/Users/prana/Documents/RAVEN/docs/adr/):
-  - [ADR-001: Deterministic Policy Engine Boundary](file:///c:/Users/prana/Documents/RAVEN/docs/adr/ADR-001-deterministic-policy-boundary.md)
-  - [ADR-002: Financial State Reconstruction](file:///c:/Users/prana/Documents/RAVEN/docs/adr/ADR-002-financial-state-reconstruction.md)
-  - [ADR-003: Agent Boundaries and Trio Isolation](file:///c:/Users/prana/Documents/RAVEN/docs/adr/ADR-003-agent-boundaries.md)
-  - [ADR-004: Monetary Representation in Integer Minor Units](file:///c:/Users/prana/Documents/RAVEN/docs/adr/ADR-004-monetary-representation.md)
-  - [ADR-005: LLM Provider Abstraction Layer](file:///c:/Users/prana/Documents/RAVEN/docs/adr/ADR-005-llm-provider-abstraction.md)
+1. **Zero LLM Authority**: LLMs only produce structured candidate proposals; they **NEVER** hold side-effect authority or issue authorization tokens.
+2. **Deterministic Policy Engine**: Policies (`POL_001` through `POL_007`) enforce non-bypassable guardrails (terminal payment protection, high-value boundaries, bank downtime caps, customer opt-outs).
+3. **Cryptographic Token Binding**: `ToolExecutor` refuses execution unless presented with a valid HMAC-SHA256 `PolicyApprovalToken` bound to exact `(payment_id, action_type, idempotency_key)`.
+4. **Idempotency Safeguard**: Replay attacks or duplicate tool calls return cached outcomes without re-executing side effects.
+5. **Deterministic Attribution**: The Verification Agent evaluates state transitions to distinguish `RAVEN_ATTRIBUTED` from `ORGANIC_CUSTOMER_RETRY` or `NO_RECOVERY`.
+6. **PII & Credential Protection**: Telemetry and logs automatically sanitize customer emails, phone numbers, HMAC keys, and secrets.
 
 ---
 
-## Quick Start (Development Initialization)
+## 4. Benchmark & Evaluation Results (Seed = 42)
 
-### Environment Prerequisites
-- Python `3.12+`
-- Node.js `v26+` (npm `11+`)
-- Git
+Evaluated across 9 deterministic synthetic scenario streams against 5 baseline strategies:
 
-### Setting Up Environment Variables
-Copy `.env.example` to `.env` and fill in local testing parameters:
+| Strategy | State Accuracy | Action Selection | Gross Recovery Rate | Net Recovery Rate | Policy Violation Rate | Attribution Precision |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Always Retry** | 100.0% | N/A | 8.41% | 8.4% | N/A | N/A |
+| **Rule-Based Baseline** | 100.0% | 55.56% | 50.41% | 50.4% | **0.0%** | 100.0% |
+| **RAVEN (Autonomous)** | **100.0%** | **55.56%** | **44.82%** | **44.8%** | **0.0%** | **100.0%** |
+
+*Note: RAVEN prioritizes safety over naive recovery rates. Transactions exceeding ₹10,000 or exhibiting low confidence are escalated to human operators rather than executed autonomously.*
+
+---
+
+## 5. Quick Start & Execution Commands
+
+### Prerequisites
+- Python 3.12+
+
+### Installation
 ```bash
-cp .env.example .env
+git clone https://github.com/pranav-bhagath19/RAVEN.git
+cd RAVEN
+python -m venv venv
+# On Windows:
+.\venv\Scripts\activate
+# On Linux/macOS:
+source venv/bin/activate
+pip install -r requirements.txt (or install fastapi uvicorn pydantic pytest ruff mypy)
 ```
-*(Note: RAVEN uses placeholder environment variables only. Secrets must never be committed to source control.)*
+
+### Running the Test Suite
+```bash
+python -m pytest tests/ -v
+```
+
+### Running Linter & Type Checks
+```bash
+ruff check domain events simulator policies tools agents ml apps razorpay tests
+mypy domain events simulator policies tools agents ml apps razorpay tests
+```
+
+### Running the API Gateway & Operations Control Plane
+```bash
+python -m apps.api.main
+```
+- OpenAPI Documentation: `http://localhost:8000/docs`
+- Health Endpoint: `http://localhost:8000/api/v1/health`
+- Control Plane Operations: `http://localhost:8000/api/v1/operations/overview`
+
+### Running Demonstrations
+- **15-Scenario Pipeline Demo**:
+  ```bash
+  python scripts/demo.py
+  ```
+- **9-Vector Security & Attack Rejection Demo**:
+  ```bash
+  python scripts/security_demo.py
+  ```
+- **Razorpay Webhook Integration Demo**:
+  ```bash
+  python -m apps.api.demo
+  ```
+- **Phase 10 ML Propensity & Fallback Demo**:
+  ```bash
+  python scripts/phase10_demo.py
+  ```
+- **Phase 11 Multi-Tenant & Policy Lifecycle Demo**:
+  ```bash
+  python scripts/phase11_demo.py
+  ```
+- **Phase 12 Adaptive Recovery Intelligence Demo**:
+  ```bash
+  python scripts/phase12_demo.py
+  ```
+
+---
+
+## 6. Docker Container Deployment
+```bash
+docker build -t raven-api .
+docker run -p 8000:8000 raven-api
+```

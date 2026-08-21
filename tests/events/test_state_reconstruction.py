@@ -158,3 +158,52 @@ def test_late_capture_replaces_failure():
 
     payment = StateReconstructor.reconstruct_payment_state(payment_id, [evt_fail, evt_late_cap])
     assert payment.status == PaymentStatus.CAPTURED
+
+
+def test_identical_timestamp_sequence_number_tie_breaking():
+    """
+    Verifies deterministic ordering when two events have IDENTICAL occurred_at timestamps,
+    proving that reconstruction sorts by occurred_at -> sequence_number rather than input/arrival order.
+
+    If sequence_number tie-breaking were absent or ignored, reversing input list order
+    would alter the recorded sequence of payment attempts and error codes.
+    """
+    base_time = datetime.now(timezone.utc)
+    payment_id = "pay_01H_test_tiebreak"
+
+    # Event 1: First attempt fails (sequence_number = 1)
+    evt_fail_1 = FinancialEvent(
+        id="evt_fail_1",
+        event_hash="hash_fail_1",
+        event_type="payment.failed",
+        entity_id=payment_id,
+        merchant_id="mer_1",
+        payload={"payment_id": payment_id, "error_code": "ERR_FIRST_ATTEMPT"},
+        occurred_at=base_time,
+        sequence_number=1,
+    )
+
+    # Event 2: Second attempt fails (sequence_number = 2, same occurred_at timestamp)
+    evt_fail_2 = FinancialEvent(
+        id="evt_fail_2",
+        event_hash="hash_fail_2",
+        event_type="payment.failed",
+        entity_id=payment_id,
+        merchant_id="mer_1",
+        payload={"payment_id": payment_id, "error_code": "ERR_SECOND_ATTEMPT"},
+        occurred_at=base_time,
+        sequence_number=2,
+    )
+
+    # Input events provided in REVERSE sequence_number order (sequence_number 2 then sequence_number 1)
+    payment = StateReconstructor.reconstruct_payment_state(
+        payment_id, [evt_fail_2, evt_fail_1]
+    )
+
+    # Assert that attempts were recorded in strict sequence_number order (1 then 2)
+    assert len(payment.attempts) == 2
+    assert payment.attempts[0].error_code == "ERR_FIRST_ATTEMPT"
+    assert payment.attempts[0].attempt_sequence == 1
+    assert payment.attempts[1].error_code == "ERR_SECOND_ATTEMPT"
+    assert payment.attempts[1].attempt_sequence == 2
+
