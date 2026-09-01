@@ -109,3 +109,94 @@ class MockLLMProvider(BaseLLMProvider):
 
         except ValidationError as e:
             raise LLMValidationError(target_model, f"Pydantic validation error: {str(e)}") from e
+
+
+class OpenAIProvider(BaseLLMProvider):
+    """
+    Live OpenAI API Gateway Provider generating structured responses.
+    Uses HTTPX REST API calls with Pydantic JSON schema parsing.
+    Falls back gracefully or raises LLMProviderError if API call fails.
+    """
+
+    def __init__(
+        self,
+        api_key: str | None = None,
+        provider_name: str = "openai_provider",
+        default_model: str = "gpt-4o",
+    ) -> None:
+        import os
+
+        super().__init__(provider_name=provider_name, default_model=default_model)
+        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
+        self._mock_fallback = MockLLMProvider()
+
+    def generate_structured(
+        self,
+        prompt: str,
+        system_prompt: str,
+        response_model: type[T],
+        prompt_version: str = "v1",
+        model_name: str | None = None,
+        temperature: float = 0.0,
+        timeout_seconds: float = 10.0,
+    ) -> tuple[T, LLMResponse[T]]:
+        target_model = model_name or self.default_model
+
+        if not self.api_key:
+            return self._mock_fallback.generate_structured(
+                prompt=prompt,
+                system_prompt=system_prompt,
+                response_model=response_model,
+                prompt_version=prompt_version,
+                model_name=target_model,
+                temperature=temperature,
+                timeout_seconds=timeout_seconds,
+            )
+
+        start_time = time.perf_counter()
+        try:
+            import httpx
+
+            url = "https://api.openai.com/v1/chat/completions"
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+            }
+            payload = {
+                "model": target_model,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt},
+                ],
+                "temperature": temperature,
+                "response_format": {"type": "json_object"},
+            }
+            res = httpx.post(url, json=payload, headers=headers, timeout=timeout_seconds)
+            res.raise_for_status()
+
+            res_json = res.json()
+            content_str = res_json["choices"][0]["message"]["content"]
+            parsed_instance = response_model.model_validate_json(content_str)
+            usage_data = res_json.get("usage", {})
+
+            elapsed = (time.perf_counter() - start_time) * 1000.0
+            resp_ok: LLMResponse[T] = LLMResponse(
+                parsed_output=parsed_instance,
+                raw_text=content_str,
+                provider_name=self.provider_name,
+                model_name=target_model,
+                prompt_version=prompt_version,
+                latency_ms=elapsed,
+                token_usage=TokenUsage(
+                    prompt_tokens=usage_data.get("prompt_tokens", 0),
+                    completion_tokens=usage_data.get("completion_tokens", 0),
+                    total_tokens=usage_data.get("total_tokens", 0),
+                ),
+                success=True,
+                failure_reason=None,
+            )
+            return parsed_instance, resp_ok
+
+        except Exception as exc:
+            raise LLMProviderError(self.provider_name, f"OpenAI API call failed: {str(exc)}") from exc
+

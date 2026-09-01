@@ -283,3 +283,35 @@ class ModelRegistryRecord(Base):
     status = Column(String(32), nullable=False, index=True)
     metrics_json = Column(JSON, nullable=False, default=dict)
     created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class UserRecord(Base):
+    """Persistent User Operator Account table."""
+
+    __tablename__ = "users"
+
+    user_id = Column(String(64), primary_key=True, index=True)
+    tenant_id = Column(String(64), nullable=False, index=True)
+    email = Column(String(128), nullable=False, unique=True, index=True)
+    hashed_password = Column(String(256), nullable=False)
+    role = Column(String(32), nullable=False, default="OPERATIONS_READ")
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+
+
+class UserAPIKeyRecord(Base):
+    """Persistent Hashed User API Key table."""
+
+    __tablename__ = "user_api_keys"
+
+    key_id = Column(String(64), primary_key=True, index=True)
+    user_id = Column(String(64), nullable=False, index=True)
+    tenant_id = Column(String(64), nullable=False, index=True)
+    name = Column(String(64), nullable=False)
+    key_prefix = Column(String(16), nullable=False, index=True)
+    key_hash = Column(String(64), nullable=False, unique=True, index=True)
+    role = Column(String(32), nullable=False, default="OPERATIONS_READ")
+    revoked = Column(Boolean, nullable=False, default=False)
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False, default=utc_now)
+

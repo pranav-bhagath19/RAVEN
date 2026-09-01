@@ -38,15 +38,32 @@ class SmartRetryTool(BaseTool):
 
 class PaymentLinkDispatchTool(BaseTool):
     """
-    Simulates generating and dispatching a WhatsApp/Email payment link.
+    Generates and dispatches a WhatsApp/Email payment link via Notification Adapters.
     """
 
     name: str = "Payment Link Dispatch Tool"
     action_type: RecoveryActionType = RecoveryActionType.PAYMENT_LINK_DISPATCH
 
     def execute(self, action_id: str, payment_id: str, parameters: dict[str, Any]) -> ToolResult:
-        channel = parameters.get("channel", "WHATSAPP")
-        link = f"https://rzp.io/i/simulated_{payment_id[:8]}"
+        channel = parameters.get("channel", "WHATSAPP").upper()
+        recipient = parameters.get("recipient", "+919876543210")
+        amount_minor = parameters.get("amount_minor", 100000)
+        link = f"https://rzp.io/i/link_{payment_id[:8]}"
+        content = f"Your payment of ₹{amount_minor / 100:.2f} requires authorization. Pay securely here: {link}"
+
+        if channel == "WHATSAPP":
+            from notifications.whatsapp import WhatsAppProvider
+
+            res = WhatsAppProvider().send_notification(recipient=recipient, content=content)
+        elif channel == "EMAIL":
+            from notifications.email import EmailProvider
+
+            res = EmailProvider().send_notification(recipient=recipient, content=content, subject="Payment Recovery Link")
+        else:
+            from notifications.sms import SMSProvider
+
+            res = SMSProvider().send_notification(recipient=recipient, content=content)
+
         return ToolResult(
             tool_name="payment_link_dispatch",
             action_id=action_id,
@@ -56,20 +73,33 @@ class PaymentLinkDispatchTool(BaseTool):
                 "message": f"Payment link dispatched via {channel}.",
                 "channel": channel,
                 "payment_link_url": link,
+                "notification": res.model_dump(),
             },
         )
 
 
 class FallbackChannelNotifyTool(BaseTool):
     """
-    Simulates dispatching fallback SMS notification to customer.
+    Dispatches fallback notification to customer via SMS/Email Provider.
     """
 
     name: str = "Fallback Channel Notify Tool"
     action_type: RecoveryActionType = RecoveryActionType.FALLBACK_CHANNEL_NOTIFY
 
     def execute(self, action_id: str, payment_id: str, parameters: dict[str, Any]) -> ToolResult:
-        channel = parameters.get("channel", "SMS")
+        channel = parameters.get("channel", "SMS").upper()
+        recipient = parameters.get("recipient", "+919876543210")
+        content = f"Notice: Payment attempt for reference '{payment_id[:8]}' failed. Please check your banking app."
+
+        if channel == "EMAIL":
+            from notifications.email import EmailProvider
+
+            res = EmailProvider().send_notification(recipient=recipient, content=content, subject="Payment Status Alert")
+        else:
+            from notifications.sms import SMSProvider
+
+            res = SMSProvider().send_notification(recipient=recipient, content=content)
+
         return ToolResult(
             tool_name="fallback_channel_notify",
             action_id=action_id,
@@ -78,6 +108,7 @@ class FallbackChannelNotifyTool(BaseTool):
             payload={
                 "message": f"Fallback notification dispatched via {channel}.",
                 "channel": channel,
+                "notification": res.model_dump(),
             },
         )
 

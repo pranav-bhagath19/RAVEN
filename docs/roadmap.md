@@ -135,22 +135,32 @@ This document outlines the phased development roadmap for **RAVEN**. Development
 
 ---
 
+### Phase 11: Multi-Tenant Merchant Intelligence & Dynamic Policy Configuration (COMPLETE)
+- **Objective**: Tenant isolation, merchant policy versioning, rollback, and REST endpoints.
+- **Deliverables**: Tenant isolation, merchant entities, policy storage, version control.
+
+---
+
 ### Phase 12: Adaptive Recovery Intelligence & Offline Policy Optimization (COMPLETE)
-- **Objective**: Extend RAVEN from static advisory propensity scoring into a deterministic, offline-trained adaptive recovery intelligence system supporting empirical action statistics, tenant recovery profiles, calibrated adaptive probability scoring, observational drift detection, dry-run offline policy optimization, counterfactual scenario evaluation, model registry champion/challenger workflows, 5-strategy comparative benchmark, and read-only REST intelligence APIs while maintaining non-negotiable security boundaries.
-- **Deliverables**:
-  - Dataset builder and target leakage guard in `ml/adaptive/dataset.py`.
-  - Action-level empirical statistics analyzer in `ml/adaptive/action_statistics.py`.
-  - Tenant recovery intelligence profiles in `ml/adaptive/tenant_intelligence.py`.
-  - Calibrated adaptive recovery scorer in `ml/adaptive/scorer.py`.
-  - Calibration analyzer in `ml/adaptive/calibration.py`.
-  - Observational drift detector in `ml/adaptive/drift.py`.
-  - Offline dry-run policy optimizer in `ml/optimization/policy_optimizer.py`.
-  - Counterfactual evaluator in `ml/optimization/counterfactual.py`.
-  - Model registry & champion/challenger evaluator in `ml/models/registry.py` and `ml/evaluation/champion_challenger.py`.
-  - RecoveryPlanner integration in `agents/recovery_planner/planner.py`.
-  - Operations Intelligence REST endpoints in `apps/api/routes/intelligence.py`.
-  - 5-strategy evaluation benchmark in `ml/evaluation/runner.py`.
-  - Interactive Phase 12 demonstration in `scripts/phase12_demo.py`.
-  - Comprehensive documentation in `docs/phase12.md`.
+- **Objective**: Extend RAVEN from static advisory propensity scoring into a deterministic, offline-trained adaptive recovery intelligence system.
+- **Deliverables**: Adaptive scorer, drift detection, offline policy optimization, counterfactual evaluation, model registry.
+
+---
+
+### Phase 13: Bounded Contextual Bandit Recovery Optimization (COMPLETE)
+- **Objective**: Contextual bandit decision optimization layer (LinUCB) with advisory-only action recommendation.
+- **Deliverables**: Contextual bandit model, reward signal calculation, action space definition, bandit evaluation.
+
+---
+
+### Phase 14: Multi-Region Reliability & Distributed Policy Synchronization (COMPLETE)
+- **Objective**: Multi-region operation, canonical SHA-256 policy hashing, conflict detection, lineage reconciliation, failover routing, and regional idempotency keys.
+- **Deliverables**: `Region` model, `PolicyReplicator`, `PolicyConflictDetector`, `PolicyReconciler`, `RegionalFailoverManager`, chaos test suite.
+
+---
+
+### Phase 15: Final Production Certification, Disaster Recovery & Release Readiness (COMPLETE)
+- **Objective**: Final 15-scenario certification harness, synthetic performance benchmark, disaster recovery runbooks, release readiness checklist, and final production certification.
+- **Deliverables**: `scripts/phase15_certification.py`, `scripts/phase15_benchmark.py`, `docs/security-boundary-matrix.md`, `docs/final-architecture.md`, `docs/operations-runbook.md`, `docs/release-readiness.md`, `tests/phase15/`, `docs/phase15.md`.
 
 

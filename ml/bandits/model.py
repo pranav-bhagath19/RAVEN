@@ -138,12 +138,18 @@ class LinUCBBanditModel:
 
         return results
 
-    def update(self, action_id: str, context: BanditContextVector, reward: float) -> None:
+    def score_action(self, action_id: str, context_vector: list[float]) -> BanditScoreResult:
+        """Scores a single candidate action given a context vector."""
+        ctx = BanditContextVector(feature_vector=context_vector)
+        res = self.score_context(ctx, [action_id])
+        return res[0]
+
+    def update(self, action_id: str, context: BanditContextVector | list[float], reward: float) -> None:
         """
         Updates parameters A_a += x x^T, b_a += reward * x for selected action.
         """
         bandit_act = BanditActionSpace.map_recovery_action_to_bandit_action(action_id).value
-        x = context.feature_vector
+        x = context.feature_vector if isinstance(context, BanditContextVector) else context
 
         if bandit_act not in self.A:
             return
@@ -162,6 +168,10 @@ class LinUCBBanditModel:
         data = {"A": self.A, "b": self.b, "alpha": self.alpha, "dimension": self.dimension}
         raw_bytes = json.dumps(data, sort_keys=True).encode("utf-8")
         return hashlib.sha256(raw_bytes).hexdigest()
+
+    def get_artifact_hash(self) -> str:
+        """Alias for compute_integrity_hash."""
+        return self.compute_integrity_hash()
 
     def get_metadata(self) -> BanditModelMetadata:
         """Returns model metadata and integrity hash."""

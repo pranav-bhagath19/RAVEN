@@ -20,23 +20,34 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-.venv
+.venv/
 venv/
 ENV/
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.benchmarks/
 .coverage
 htmlcov/
 
-# Node / Web
+# Node / Web / Next.js
 node_modules/
+**/node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 .next/
+**/.next/
 out/
 .nuxt/
 dist/
+
+# Databases & Local SQLite
+*.db
+*.sqlite
+*.sqlite3
+raven_local.db
 
 # Environment and Secrets
 .env

@@ -39,6 +39,10 @@ class UserIdentity:
                 "POLICY_ROLLBACK",
                 "TENANT_ADMIN",
                 "PLATFORM_ADMIN",
+                "REGION_READ",
+                "REPLICATION_READ",
+                "REPLICATION_CONTROL",
+                "RECONCILIATION_CONTROL",
             }
         if role == "TENANT_ADMIN":
             return {
@@ -49,6 +53,10 @@ class UserIdentity:
                 "POLICY_ACTIVATE",
                 "POLICY_ROLLBACK",
                 "TENANT_ADMIN",
+                "REGION_READ",
+                "REPLICATION_READ",
+                "REPLICATION_CONTROL",
+                "RECONCILIATION_CONTROL",
             }
         if role == "POLICY_MANAGER":
             return {
@@ -57,6 +65,8 @@ class UserIdentity:
                 "POLICY_WRITE",
                 "POLICY_ACTIVATE",
                 "POLICY_ROLLBACK",
+                "REGION_READ",
+                "REPLICATION_READ",
             }
         if role == "OPERATIONS_CONTROL":
             return {
@@ -64,9 +74,13 @@ class UserIdentity:
                 "OPERATIONS_CONTROL",
                 "POLICY_READ",
                 "POLICY_WRITE",
+                "REGION_READ",
+                "REPLICATION_READ",
+                "REPLICATION_CONTROL",
+                "RECONCILIATION_CONTROL",
             }
         # Default read-only
-        return {"OPERATIONS_READ", "POLICY_READ"}
+        return {"OPERATIONS_READ", "POLICY_READ", "REGION_READ", "REPLICATION_READ"}
 
     def can_control(self) -> bool:
         """Returns True if user has control permissions."""
@@ -83,13 +97,48 @@ def get_current_user(
     authorization: Annotated[str | None, Header(alias="Authorization")] = None,
 ) -> UserIdentity:
     """
-    Validates API Key or Bearer Token and extracts authenticated UserIdentity and TenantContext.
+    Validates API Key or Bearer Token against database repository and extracts authenticated UserIdentity.
     Tenant identity originates strictly from authentication/headers, NEVER unprivileged request bodies.
     """
     settings = get_settings()
     provided_key = x_api_key or (authorization.replace("Bearer ", "") if authorization else None)
     tenant_id = x_tenant_id or "tenant_demo"
     merchant_id = f"mer_{tenant_id.replace('tenant_', '')}"
+
+    if provided_key:
+        # 1. Try database-backed API key validation
+        try:
+            from persistence.database import SessionLocal
+            from persistence.repositories.api_keys import APIKeyRepository
+
+            db = SessionLocal()
+            repo = APIKeyRepository(db)
+            db_key = repo.validate_api_key(provided_key)
+            db.close()
+
+            if db_key:
+                return UserIdentity(
+                    role=str(db_key.role),
+                    key_id=str(db_key.key_id),
+                    tenant_id=str(db_key.tenant_id),
+                    merchant_id=f"mer_{str(db_key.tenant_id).replace('tenant_', '')}",
+                )
+        except Exception:
+            pass
+
+        # 2. Legacy / Dev key prefix matching
+        if provided_key.startswith("admin_"):
+            return UserIdentity(role="ADMIN", key_id="admin_user", tenant_id=tenant_id, merchant_id=merchant_id)
+        if provided_key.startswith("control_"):
+            return UserIdentity(role="OPERATIONS_CONTROL", key_id="control_user", tenant_id=tenant_id, merchant_id=merchant_id)
+        if provided_key.startswith("policy_mgr_"):
+            return UserIdentity(role="POLICY_MANAGER", key_id="policy_user", tenant_id=tenant_id, merchant_id=merchant_id)
+        if provided_key.startswith("tenant_a_"):
+            return UserIdentity(role="TENANT_ADMIN", key_id="user_a", tenant_id="tenant_a", merchant_id="mer_a")
+        if provided_key.startswith("tenant_b_"):
+            return UserIdentity(role="TENANT_ADMIN", key_id="user_b", tenant_id="tenant_b", merchant_id="mer_b")
+        if provided_key.startswith("read_"):
+            return UserIdentity(role="OPERATIONS_READ", key_id="read_user", tenant_id=tenant_id, merchant_id=merchant_id)
 
     if not provided_key:
         if settings.environment != "production":
@@ -98,19 +147,6 @@ def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={"error": {"code": "UNAUTHORIZED", "message": "Missing API authentication key."}},
         )
-
-    if provided_key.startswith("admin_"):
-        return UserIdentity(role="ADMIN", key_id="admin_user", tenant_id=tenant_id, merchant_id=merchant_id)
-    if provided_key.startswith("control_"):
-        return UserIdentity(role="OPERATIONS_CONTROL", key_id="control_user", tenant_id=tenant_id, merchant_id=merchant_id)
-    if provided_key.startswith("policy_mgr_"):
-        return UserIdentity(role="POLICY_MANAGER", key_id="policy_user", tenant_id=tenant_id, merchant_id=merchant_id)
-    if provided_key.startswith("tenant_a_"):
-        return UserIdentity(role="TENANT_ADMIN", key_id="user_a", tenant_id="tenant_a", merchant_id="mer_a")
-    if provided_key.startswith("tenant_b_"):
-        return UserIdentity(role="TENANT_ADMIN", key_id="user_b", tenant_id="tenant_b", merchant_id="mer_b")
-    if provided_key.startswith("read_"):
-        return UserIdentity(role="OPERATIONS_READ", key_id="read_user", tenant_id=tenant_id, merchant_id=merchant_id)
 
     if settings.environment != "production":
         return UserIdentity(role="OPERATIONS_CONTROL", key_id="demo_operator", tenant_id=tenant_id, merchant_id=merchant_id)

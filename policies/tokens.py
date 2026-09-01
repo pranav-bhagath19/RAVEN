@@ -117,6 +117,19 @@ def generate_approval_token(
     )
 
 
+def issue_approval_token(action: Any, policy_id: str = "POL_001", policy_version: str = "v1.0") -> PolicyApprovalToken:
+    """Helper creating PolicyApprovalToken for an action."""
+    return generate_approval_token(
+        decision_id="dec_approved_01",
+        opportunity_id=getattr(action, "opportunity_id", "opp_01"),
+        payment_id=getattr(action, "payment_id", "pay_01"),
+        action_id=getattr(action, "id", "act_01"),
+        action_type=getattr(action, "action_type", "SMART_RETRY"),
+        idempotency_key=getattr(action, "idempotency_key", "idem_01"),
+        policy_version=policy_version,
+    )
+
+
 def verify_approval_token(
     token: PolicyApprovalToken,
     expected_payment_id: str,

@@ -67,6 +67,11 @@ class RedisIdempotencyStore:
     Falls back gracefully to LocalIdempotencyStore if Redis connection fails or is unconfigured.
     """
 
+    @staticmethod
+    def make_regional_key(tenant_id: str, idempotency_key: str, region_id: str = "global") -> str:
+        """Constructs tenant and region scoped idempotency key string."""
+        return f"{tenant_id}:{region_id}:{idempotency_key}"
+
     def __init__(self, redis_url: str | None = None) -> None:
         self.url = redis_url or os.getenv("REDIS_URL")
         self.client: Any = None

@@ -91,3 +91,23 @@ class ActorType(str, Enum):
     AGENT_VERIFIER = "AGENT_VERIFIER"
     POLICY_ENGINE = "POLICY_ENGINE"
     HUMAN_OPERATOR = "HUMAN_OPERATOR"
+
+
+class RegionStatus(str, Enum):
+    ACTIVE = "ACTIVE"
+    DEGRADED = "DEGRADED"
+    OFFLINE = "OFFLINE"
+    RECOVERING = "RECOVERING"
+
+
+class ReplicationStatus(str, Enum):
+    PENDING = "PENDING"
+    SYNCHRONIZED = "SYNCHRONIZED"
+    CONFLICT = "CONFLICT"
+    FAILED = "FAILED"
+    STALE = "STALE"
+
+
+class ReconciliationStrategy(str, Enum):
+    AUTHORITATIVE_DESCENDANT = "AUTHORITATIVE_DESCENDANT"
+    FAIL_CLOSED = "FAIL_CLOSED"

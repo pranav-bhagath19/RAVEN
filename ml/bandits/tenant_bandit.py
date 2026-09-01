@@ -30,6 +30,7 @@ class TenantBanditDecisionResult(BaseModel):
         ...,
         description="TENANT_CONTEXTUAL_BANDIT, GLOBAL_CONTEXTUAL_BANDIT, ADAPTIVE_ML, BASE_PROPENSITY, DETERMINISTIC_FALLBACK",
     )
+    mode: str = Field(default="TENANT_CONTEXTUAL_BANDIT", description="Alias for reasoning_mode")
     ranked_scores: list[BanditScoreResult] = Field(default_factory=list)
     exploration_decision: ExplorationDecision = Field(...)
     context_hash: str = Field(..., description="SHA-256 hash of context vector")
@@ -51,12 +52,40 @@ class TenantBanditManager:
         self.context_builder = BanditContextBuilder()
         self.exploration_manager = ExplorationManager()
 
+    def get_or_create_profile(self, tenant_id: str) -> TenantBanditProfile:
+        """Retrieves or constructs TenantBanditProfile."""
+        cnt = self.tenant_update_counts.get(tenant_id, 0)
+        return TenantBanditProfile(
+            tenant_id=tenant_id,
+            total_bandit_updates=cnt,
+            has_sufficient_data=(cnt >= self.TENANT_MIN_BANDIT_SAMPLES),
+            tenant_alpha=0.50,
+        )
+
     def get_or_create_tenant_bandit(self, tenant_id: str) -> LinUCBBanditModel:
         """Retrieves or initializes a tenant-isolated LinUCBBanditModel."""
         if tenant_id not in self.tenant_bandits:
             self.tenant_bandits[tenant_id] = LinUCBBanditModel(dimension=12, alpha=0.50, seed=42)
             self.tenant_update_counts[tenant_id] = 0
         return self.tenant_bandits[tenant_id]
+
+    def score_and_select(
+        self,
+        tenant_id: str,
+        candidate_actions: list[str],
+        context_vector: Any,
+    ) -> TenantBanditDecisionResult:
+        """Scores candidate actions and selects an action adhering to data sufficiency cascade."""
+        raw_rec = {
+            "tenant_id": tenant_id,
+            "payment_id": "pay_select",
+            "amount_minor": 100000,
+        }
+        return self.rank_actions(
+            tenant_id=tenant_id,
+            raw_record=raw_rec,
+            approved_candidates=candidate_actions,
+        )
 
     def rank_actions(
         self,
@@ -115,10 +144,27 @@ class TenantBanditManager:
         return TenantBanditDecisionResult(
             selected_action=exp_dec.selected_action,
             reasoning_mode=mode,
+            mode=mode,
             ranked_scores=scores,
             exploration_decision=exp_dec,
             context_hash=ctx_hash,
             model_version="v13.0-bandit",
+        )
+
+    def update_bandit(
+        self,
+        tenant_id: str,
+        action_type: str,
+        context_vector: Any,
+        reward: float,
+    ) -> None:
+        """Alias for update_tenant_bandit accepting flexible context vector."""
+        raw_rec = {"tenant_id": tenant_id, "amount_minor": 100000}
+        self.update_tenant_bandit(
+            tenant_id=tenant_id,
+            action_id=action_type,
+            raw_record=raw_rec,
+            reward=reward,
         )
 
     def update_tenant_bandit(

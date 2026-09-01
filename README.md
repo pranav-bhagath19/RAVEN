@@ -138,9 +138,17 @@ python -m apps.api.main
   ```bash
   python scripts/phase11_demo.py
   ```
-- **Phase 12 Adaptive Recovery Intelligence Demo**:
+- **Phase 14 Multi-Region Reliability & Replication Demo**:
   ```bash
-  python scripts/phase12_demo.py
+  python scripts/phase14_demo.py
+  ```
+- **Phase 15 Production Certification Harness**:
+  ```bash
+  python scripts/phase15_certification.py
+  ```
+- **Phase 15 Performance Benchmark Harness**:
+  ```bash
+  python scripts/phase15_benchmark.py
   ```
 
 ---

@@ -68,5 +68,17 @@ services:
       timeout: 5s
       retries: 5
 
+  dashboard:
+    build:
+      context: ./apps/dashboard
+      dockerfile: Dockerfile
+    container_name: raven-dashboard
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+    depends_on:
+      - raven-api
+
 volumes:
   postgres_data:

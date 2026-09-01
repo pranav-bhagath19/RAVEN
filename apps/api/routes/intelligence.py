@@ -253,3 +253,50 @@ def optimize_policy_dry_run(
         candidate_config=request_body.candidate_configuration,
         historical_outcomes=[],
     )
+
+
+@router.get("/bandit", response_model=dict[str, Any])
+def get_bandit_overview(
+    user: UserIdentity = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Returns overview of Contextual Bandit configuration."""
+    from ml.bandits.model import LinUCBBanditModel
+    m = LinUCBBanditModel()
+    return {
+        "algorithm": "LinUCB",
+        "feature_dimensions": m.dimension,
+        "alpha": m.alpha,
+        "actions_count": len(m.actions),
+        "model_hash": m.compute_integrity_hash(),
+    }
+
+
+@router.get("/bandit/actions", response_model=list[dict[str, Any]])
+def list_bandit_actions(
+    user: UserIdentity = Depends(get_current_user),
+) -> list[dict[str, Any]]:
+    """Lists bounded action space for Contextual Bandit optimization."""
+    from ml.bandits.action_space import BanditActionSpace
+    return [a.model_dump(mode="json") for a in BanditActionSpace.DEFAULT_ACTIONS]
+
+
+@router.get("/bandit/evaluation", response_model=dict[str, Any])
+def get_bandit_evaluation(
+    user: UserIdentity = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Returns offline counterfactual evaluation comparison for Contextual Bandit."""
+    from ml.evaluation.bandit_evaluation import BanditEvaluationRunner
+    evaluator = BanditEvaluationRunner()
+    report = evaluator.evaluate()
+    return report.model_dump(mode="json")
+
+
+@router.post("/bandit/simulate", response_model=dict[str, Any])
+def simulate_bandit(
+    user: UserIdentity = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Executes dry-run simulation of Contextual Bandit decision optimization."""
+    from ml.optimization.bandit_simulator import BanditSimulator
+    sim = BanditSimulator(seed=42)
+    report = sim.simulate(scenarios=[])
+    return report.model_dump(mode="json")

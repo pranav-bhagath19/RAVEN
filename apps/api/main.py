@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from apps.api.config import get_settings
 from apps.api.exceptions import register_exception_handlers
 from apps.api.middleware import RequestCorrelationMiddleware
-from apps.api.routes import health, intelligence, operations, policies, webhooks
+from apps.api.routes import health, intelligence, operations, policies, regions, replication, webhooks
 
 settings = get_settings()
 
@@ -40,6 +40,17 @@ app.include_router(webhooks.router)
 app.include_router(operations.router)
 app.include_router(policies.router)
 app.include_router(intelligence.router)
+app.include_router(regions.router)
+app.include_router(replication.router)
+
+
+@app.get("/metrics", tags=["Observability"])
+def prometheus_metrics():
+    """Prometheus Scrape Endpoint for Application Metrics."""
+    from fastapi.responses import PlainTextResponse
+    from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+
+    return PlainTextResponse(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
 if __name__ == "__main__":

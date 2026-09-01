@@ -52,6 +52,13 @@ class AgentOrchestrator:
         self.tool_executor = tool_executor or ToolExecutor()
         self.telemetry = telemetry or LLMObservabilityTelemetry()
 
+    def process_webhook(self, webhook_payload: dict[str, Any], merchant_id: str = "mer_demo") -> DecisionTrace:
+        """Processes raw webhook payload end-to-end."""
+        from domain.enums import MerchantStatus
+        m = Merchant(id=merchant_id, name="Test Merchant", currency="INR", status=MerchantStatus.ACTIVE)
+        c = Customer(id="cust_demo", name="Test Customer", phone="+919999999999", email="test@example.com", merchant_id=merchant_id)
+        return self.process_payment_failure(events=[webhook_payload], merchant=m, customer=c)
+
     def process_payment_failure(
         self,
         events: list[Any],
@@ -273,3 +280,6 @@ class AgentOrchestrator:
         trace.mark_milestone("outcome_verified")
 
         return trace
+
+
+RecoveryOrchestrator = AgentOrchestrator

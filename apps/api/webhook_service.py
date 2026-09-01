@@ -61,10 +61,11 @@ class WebhookService:
         if not signature:
             raise WebhookProcessingError("MISSING_SIGNATURE", "X-Razorpay-Signature header is missing", status_code=401)
 
+        effective_secret = os.getenv("RAZORPAY_WEBHOOK_SECRET") or self.webhook_secret
         valid_sig = verify_razorpay_webhook_signature(
             raw_body=raw_body,
             signature=signature,
-            secret=self.webhook_secret,
+            secret=effective_secret,
         )
 
         if not valid_sig:

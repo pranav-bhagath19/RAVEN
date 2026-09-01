@@ -67,6 +67,11 @@ class BanditActionSpace:
         return [a.value for a in BanditActionIdentifier]
 
     @classmethod
+    def get_all_actions(cls) -> list[str]:
+        """Alias returning list of stable action identifier string values."""
+        return cls.get_action_identifiers()
+
+    @classmethod
     def map_recovery_action_to_bandit_action(cls, recovery_action_type: str) -> BanditActionIdentifier:
         """Maps RecoveryActionType string to BanditActionIdentifier."""
         act_upper = str(recovery_action_type).upper()

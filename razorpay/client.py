@@ -1,11 +1,30 @@
 """
 Razorpay API Client Module
 
-Defines BaseRazorpayClient abstraction and MockRazorpayClient implementation for offline testing and demo execution.
+Defines BaseRazorpayClient abstraction, structured exceptions, and MockRazorpayClient implementation for offline testing and demo execution.
 """
 
 from abc import ABC, abstractmethod
 from typing import Any
+
+
+class RazorpayAPIError(Exception):
+    """Structured exception for Razorpay REST API errors."""
+
+    def __init__(self, status_code: int, error_code: str, message: str) -> None:
+        super().__init__(f"Razorpay API Error ({status_code}) [{error_code}]: {message}")
+        self.status_code = status_code
+        self.error_code = error_code
+        self.message = message
+
+
+class RazorpayTimeoutError(Exception):
+    """Structured exception for Razorpay HTTP timeouts."""
+
+    def __init__(self, endpoint: str, timeout_seconds: float) -> None:
+        super().__init__(f"Razorpay request to '{endpoint}' timed out after {timeout_seconds}s")
+        self.endpoint = endpoint
+        self.timeout_seconds = timeout_seconds
 
 
 class BaseRazorpayClient(ABC):
@@ -14,6 +33,11 @@ class BaseRazorpayClient(ABC):
     @abstractmethod
     def fetch_payment(self, payment_id: str) -> dict[str, Any]:
         """Fetches payment entity from Razorpay API."""
+        pass
+
+    @abstractmethod
+    def fetch_order(self, order_id: str) -> dict[str, Any]:
+        """Fetches order entity from Razorpay API."""
         pass
 
     @abstractmethod
@@ -26,6 +50,11 @@ class BaseRazorpayClient(ABC):
         currency: str = "INR",
     ) -> dict[str, Any]:
         """Creates payment link with mandatory idempotency key."""
+        pass
+
+    @abstractmethod
+    def get_payment_status(self, payment_id: str) -> str:
+        """Returns string status of payment (captured, failed, authorized, refunded)."""
         pass
 
 
@@ -51,6 +80,18 @@ class MockRazorpayClient(BaseRazorpayClient):
             "error_description": "Mock payment failure fetch response",
         }
 
+    def fetch_order(self, order_id: str) -> dict[str, Any]:
+        return {
+            "id": order_id,
+            "entity": "order",
+            "amount": 150000,
+            "amount_paid": 0,
+            "amount_due": 150000,
+            "currency": "INR",
+            "status": "created",
+            "attempts": 1,
+        }
+
     def create_payment_link(
         self,
         payment_id: str,
@@ -72,3 +113,7 @@ class MockRazorpayClient(BaseRazorpayClient):
         }
         self.payment_links_created.append(record)
         return record
+
+    def get_payment_status(self, payment_id: str) -> str:
+        res = self.fetch_payment(payment_id)
+        return res.get("status", "failed")

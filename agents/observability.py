@@ -9,7 +9,20 @@ from datetime import datetime
 import re
 import threading
 from pydantic import BaseModel, Field
+from prometheus_client import Counter, Histogram
 from agents.common.models import TokenUsage
+
+# Prometheus Metrics Definitions for Razorpay Buildathon Track 03
+REVENUE_AT_RISK_COUNTER = Counter("raven_revenue_at_risk_minor", "Total revenue at risk ingested in minor units (paise)")
+REVENUE_RECOVERED_COUNTER = Counter("raven_revenue_recovered_minor", "Total revenue recovered in minor units (paise)")
+RECOVERY_ATTEMPTS_COUNTER = Counter("raven_recovery_attempts_total", "Total recovery intervention attempts dispatched")
+RECOVERY_SUCCESS_COUNTER = Counter("raven_recovery_success_total", "Total successful revenue recoveries")
+POLICY_VETO_COUNTER = Counter("raven_policy_veto_total", "Total candidate actions vetoed by PolicyEngine")
+WEBHOOK_TOTAL_COUNTER = Counter("raven_webhook_total", "Total webhook events received")
+WEBHOOK_INVALID_SIG_COUNTER = Counter("raven_webhook_invalid_signature_total", "Total webhook invalid signature rejections")
+TOOL_EXECUTION_COUNTER = Counter("raven_tool_execution_total", "Total tool execution actions dispatched")
+TOOL_DUPLICATE_COUNTER = Counter("raven_tool_duplicate_prevented_total", "Total duplicate tool executions prevented by idempotency")
+DECISION_LATENCY_HISTOGRAM = Histogram("raven_decision_latency_seconds", "Decision latency in seconds")
 
 
 def sanitize_pii(text: str) -> str:

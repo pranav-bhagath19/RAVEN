@@ -18,8 +18,14 @@ class BanditRewardSignal(BaseModel):
     action_cost_minor: int = Field(..., ge=0, description="Action execution cost in paise")
     net_reward_minor: int = Field(..., description="Net recovered value in paise (gross - cost)")
     normalized_reward: float = Field(..., description="Normalized reward signal in [-1.0, +1.0]")
+    monetary_unit: str = Field(default="PAISE", description="Monetary unit representation")
     is_counterfactual: bool = Field(default=False, description="Flag indicating counterfactual simulation")
     label: str = Field(default="OBSERVED", description="OBSERVED or COUNTERFACTUAL")
+
+    @property
+    def reward_value(self) -> float:
+        """Alias returning normalized_reward."""
+        return self.normalized_reward
 
 
 class BanditRewardModel:
@@ -34,18 +40,29 @@ class BanditRewardModel:
 
     def compute_reward(
         self,
-        outcome: int,
-        amount_minor: int,
+        outcome: int = 0,
+        amount_minor: int = 0,
         action_cost_minor: int = 10,
         customer_opt_out: bool = False,
         is_counterfactual: bool = False,
+        verified_recovery: bool | None = None,
+        recovered_amount_minor: int = 0,
+        reward_value: float | None = None,
+        monetary_unit: str = "minor_units",
     ) -> BanditRewardSignal:
         """
         Computes deterministic reward signal from verified outcome data.
         """
+        if verified_recovery is not None:
+            outcome = 1 if verified_recovery else 0
+            amount_minor = recovered_amount_minor or amount_minor
+
         label = "COUNTERFACTUAL" if is_counterfactual else "OBSERVED"
 
-        if customer_opt_out:
+        if reward_value is not None:
+            norm_reward = reward_value
+            gross_rec = amount_minor
+        elif customer_opt_out:
             norm_reward = self.REWARD_OPT_OUT
             gross_rec = 0
         elif outcome == 1:
