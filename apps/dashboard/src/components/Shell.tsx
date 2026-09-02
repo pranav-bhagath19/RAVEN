@@ -12,7 +12,6 @@ import {
   ChevronRight,
   CreditCard,
   FileText,
-  FlaskConical,
   GitCommit,
   Home,
   Layers,
@@ -37,7 +36,6 @@ export function Shell({ children }: ShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [testMode, setTestMode] = useState(true);
   const [auth, setAuth] = useState({ apiKey: "", tenantId: "", role: "" });
 
   useEffect(() => {
@@ -164,27 +162,6 @@ export function Shell({ children }: ShellProps) {
 
           {/* Bottom Fixed Footer Section */}
           <div className="pt-4 border-t border-slate-200/80 space-y-1 mt-6">
-            {/* Test Mode Toggle Switch */}
-            <div className="flex items-center justify-between px-3.5 py-2.5 text-sm font-medium text-slate-800 hover:bg-slate-200/40 rounded-lg cursor-pointer">
-              <div className="flex items-center">
-                <FlaskConical className="w-4 h-4 mr-3.5 text-slate-700" />
-                <span className="font-semibold">Test Mode</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setTestMode(!testMode)}
-                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                  testMode ? "bg-[#0570DE]" : "bg-slate-300"
-                }`}
-              >
-                <span
-                  className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
-                    testMode ? "translate-x-4" : "translate-x-0"
-                  }`}
-                />
-              </button>
-            </div>
-
             {/* Account & Settings Link */}
             <Link
               href="/settings"
@@ -278,14 +255,6 @@ export function Shell({ children }: ShellProps) {
                 className="bg-transparent text-xs text-slate-800 placeholder-slate-400 focus:outline-none w-full font-sans"
               />
             </div>
-
-            {/* Test Mode Live Indicator */}
-            {testMode && (
-              <div className="hidden sm:flex items-center space-x-2 bg-amber-50 text-amber-800 px-2.5 py-1 rounded-md border border-amber-200 text-xs font-bold font-sans">
-                <FlaskConical className="w-3.5 h-3.5 text-amber-600" />
-                <span>TEST MODE</span>
-              </div>
-            )}
 
             {/* Notification Bell */}
             <button
