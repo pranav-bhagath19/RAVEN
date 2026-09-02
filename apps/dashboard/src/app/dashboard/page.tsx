@@ -26,16 +26,31 @@ import {
 } from "lucide-react";
 
 interface OverviewData {
-  revenue_at_risk_minor: number;
-  revenue_recovered_minor: number;
-  recovery_rate_pct: number;
-  revenue_recovery_value_rate_pct: number;
+  total_payments: number;
   failed_payments: number;
-  actions_attempted: number;
-  successful_recoveries: number;
-  policy_veto_count: number;
-  duplicate_execution_count: number;
-  average_decision_latency_seconds: number;
+  recovered_payments: number;
+  recovery_rate: number;
+  total_revenue_at_risk_minor: number;
+  total_revenue_recovered_minor: number;
+  total_action_cost_minor: number;
+  net_revenue_recovered_minor: number;
+  blocked_actions: number;
+  escalations: number;
+  approved_actions: number;
+  tool_executions: number;
+  duplicate_executions_prevented: number;
+  policy_violations: number;
+  active_opportunities: number;
+  webhook_count: number;
+  revenue_at_risk_minor?: number;
+  revenue_recovered_minor?: number;
+  recovery_rate_pct?: number;
+  revenue_recovery_value_rate_pct?: number;
+  actions_attempted?: number;
+  successful_recoveries?: number;
+  policy_veto_count?: number;
+  duplicate_execution_count?: number;
+  average_decision_latency_seconds?: number;
 }
 
 export default function DashboardPage() {
@@ -47,19 +62,64 @@ export default function DashboardPage() {
 
   useEffect(() => {
     Promise.all([
-      fetchApi<OverviewData>("/operations/overview").catch(() => null),
+      fetchApi<any>("/operations/overview").catch(() => null),
       fetchApi<any>("/operations/payments").catch(() => null),
       fetchApi<any>("/operations/decisions").catch(() => null),
     ]).then(([overviewRes, paymentsRes, decisionsRes]) => {
       if (overviewRes) {
-        setOverview(overviewRes);
+        const atRisk = Number(overviewRes.total_revenue_at_risk_minor ?? overviewRes.revenue_at_risk_minor ?? 0);
+        const recovered = Number(overviewRes.total_revenue_recovered_minor ?? overviewRes.revenue_recovered_minor ?? 0);
+        const rawRate = overviewRes.recovery_rate != null ? Number(overviewRes.recovery_rate) * 100 : (atRisk > 0 ? (recovered / atRisk) * 100 : 0);
+
+        setOverview({
+          total_payments: overviewRes.total_payments ?? 0,
+          failed_payments: overviewRes.failed_payments ?? 0,
+          recovered_payments: overviewRes.recovered_payments ?? 0,
+          recovery_rate: overviewRes.recovery_rate ?? 0,
+          total_revenue_at_risk_minor: atRisk,
+          total_revenue_recovered_minor: recovered,
+          total_action_cost_minor: overviewRes.total_action_cost_minor ?? 0,
+          net_revenue_recovered_minor: overviewRes.net_revenue_recovered_minor ?? 0,
+          blocked_actions: overviewRes.blocked_actions ?? 0,
+          escalations: overviewRes.escalations ?? 0,
+          approved_actions: overviewRes.approved_actions ?? 0,
+          tool_executions: overviewRes.tool_executions ?? overviewRes.actions_attempted ?? 0,
+          duplicate_executions_prevented: overviewRes.duplicate_executions_prevented ?? 0,
+          policy_violations: overviewRes.policy_violations ?? 0,
+          active_opportunities: overviewRes.active_opportunities ?? 0,
+          webhook_count: overviewRes.webhook_count ?? 0,
+          revenue_at_risk_minor: atRisk,
+          revenue_recovered_minor: recovered,
+          recovery_rate_pct: rawRate,
+          revenue_recovery_value_rate_pct: rawRate,
+          actions_attempted: overviewRes.tool_executions ?? overviewRes.actions_attempted ?? 0,
+          successful_recoveries: overviewRes.recovered_payments ?? overviewRes.successful_recoveries ?? 0,
+          policy_veto_count: overviewRes.blocked_actions ?? overviewRes.policy_violations ?? 0,
+          duplicate_execution_count: overviewRes.duplicate_executions_prevented ?? 0,
+          average_decision_latency_seconds: 0,
+        });
       } else {
         setOverview({
+          total_payments: 0,
+          failed_payments: 0,
+          recovered_payments: 0,
+          recovery_rate: 0,
+          total_revenue_at_risk_minor: 0,
+          total_revenue_recovered_minor: 0,
+          total_action_cost_minor: 0,
+          net_revenue_recovered_minor: 0,
+          blocked_actions: 0,
+          escalations: 0,
+          approved_actions: 0,
+          tool_executions: 0,
+          duplicate_executions_prevented: 0,
+          policy_violations: 0,
+          active_opportunities: 0,
+          webhook_count: 0,
           revenue_at_risk_minor: 0,
           revenue_recovered_minor: 0,
           recovery_rate_pct: 0,
           revenue_recovery_value_rate_pct: 0,
-          failed_payments: 0,
           actions_attempted: 0,
           successful_recoveries: 0,
           policy_veto_count: 0,
@@ -82,8 +142,10 @@ export default function DashboardPage() {
     });
   }, []);
 
-  const formatINR = (minorUnits: number) => {
-    return `₹${(minorUnits / 100).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
+  const formatINR = (minorUnits: any) => {
+    const val = typeof minorUnits === "number" ? minorUnits : Number(minorUnits);
+    if (isNaN(val)) return "₹0.00";
+    return `₹${(val / 100).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
   };
 
   return (
@@ -150,7 +212,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <KpiCard
           title="Revenue at Risk"
-          value={overview ? formatINR(overview.revenue_at_risk_minor) : "₹0.00"}
+          value={formatINR(overview?.total_revenue_at_risk_minor ?? overview?.revenue_at_risk_minor ?? 0)}
           subtext="Total failed payment volume"
           icon={AlertCircle}
           accentColor="rose"
@@ -158,7 +220,7 @@ export default function DashboardPage() {
         />
         <KpiCard
           title="Revenue Recovered"
-          value={overview ? formatINR(overview.revenue_recovered_minor) : "₹0.00"}
+          value={formatINR(overview?.total_revenue_recovered_minor ?? overview?.revenue_recovered_minor ?? 0)}
           subtext="Ground-truth captured revenue"
           icon={CheckCircle2}
           accentColor="emerald"
@@ -166,7 +228,7 @@ export default function DashboardPage() {
         />
         <KpiCard
           title="Recovery Value Rate"
-          value={overview ? `${overview.revenue_recovery_value_rate_pct}%` : "0%"}
+          value={overview ? `${Number(overview.recovery_rate_pct ?? (overview.recovery_rate != null ? overview.recovery_rate * 100 : 0)).toFixed(1)}%` : "0.0%"}
           subtext="Percent of minor unit value recovered"
           icon={TrendingUp}
           accentColor="blue"
@@ -174,7 +236,7 @@ export default function DashboardPage() {
         />
         <KpiCard
           title="Failed Payments Ingested"
-          value={overview ? overview.failed_payments : 0}
+          value={overview?.failed_payments ?? 0}
           subtext="Razorpay failure webhooks"
           icon={CreditCard}
           accentColor="amber"
@@ -182,7 +244,7 @@ export default function DashboardPage() {
         />
         <KpiCard
           title="Recovery Attempts"
-          value={overview ? overview.actions_attempted : 0}
+          value={overview?.tool_executions ?? overview?.actions_attempted ?? 0}
           subtext="Bounded tool executions"
           icon={Zap}
           accentColor="indigo"
@@ -190,7 +252,7 @@ export default function DashboardPage() {
         />
         <KpiCard
           title="Policy Vetoes Enforced"
-          value={overview ? overview.policy_veto_count : 0}
+          value={overview?.blocked_actions ?? overview?.policy_veto_count ?? overview?.policy_violations ?? 0}
           subtext="Non-bypassable safety vetoes"
           icon={ShieldCheck}
           accentColor="rose"
