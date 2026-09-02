@@ -279,9 +279,19 @@ def test_9_state_reconstruction_from_persisted_events():
 
 
 # TEST 10: Persisted failed payment -> dashboard API returns it.
+import copy
+import time
+import uuid
+
 def test_10_dashboard_api_returns_persisted_payment(monkeypatch):
     monkeypatch.setenv("RAZORPAY_WEBHOOK_SECRET", TEST_WEBHOOK_SECRET)
-    raw_body = json.dumps(SAMPLE_PAYMENT_FAILED_PAYLOAD).encode("utf-8")
+    unique_suffix = uuid.uuid4().hex[:8]
+    unique_pay_id = f"pay_test_dash_{unique_suffix}"
+    payload = copy.deepcopy(SAMPLE_PAYMENT_FAILED_PAYLOAD)
+    payload["payload"]["payment"]["entity"]["id"] = unique_pay_id
+    payload["created_at"] = int(time.time()) + 500
+    payload["payload"]["payment"]["entity"]["created_at"] = int(time.time()) + 500
+    raw_body = json.dumps(payload).encode("utf-8")
     sig = generate_signature(raw_body)
 
     # 1. Post webhook
@@ -304,10 +314,10 @@ def test_10_dashboard_api_returns_persisted_payment(monkeypatch):
     )
 
     assert response.status_code == 200
-    payload = response.json()
-    items = payload["items"]
+    res_json = response.json()
+    items = res_json["items"]
     assert len(items) >= 1
-    matching = [item for item in items if item["payment_id"] == "pay_test_failed_001"]
+    matching = [item for item in items if item["payment_id"] == unique_pay_id]
     assert len(matching) == 1
     assert matching[0]["status"].upper() == "FAILED"
     assert matching[0]["amount_minor"] == 50000
