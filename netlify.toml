@@ -1,9 +1,10 @@
-[[plugins]]
-  package = "@netlify/plugin-nextjs"
-
 [build]
+  base = "apps/dashboard"
   command = "npm run build"
   publish = ".next"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
 
 [build.environment]
   SECRETS_SCAN_ENABLED = "false"
