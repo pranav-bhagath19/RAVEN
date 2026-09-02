@@ -3,7 +3,7 @@
  * Connects directly to RAVEN FastAPI Control Plane endpoints.
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://raven-wwex.onrender.com/api/v1";
 
 export interface UserSession {
   apiKey: string;
