@@ -2,7 +2,6 @@
 Unit Tests for Firestore-Backed Idempotency & Locking Store
 """
 
-import time
 import uuid
 import pytest
 from persistence.firebase import reset_firestore_emulator

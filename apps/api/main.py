@@ -2,18 +2,17 @@
 RAVEN FastAPI Gateway Application Entry Point
 """
 
+from contextlib import asynccontextmanager
 from dotenv import load_dotenv
+
 load_dotenv()
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from apps.api.config import get_settings
-
-from apps.api.exceptions import register_exception_handlers
-
-from apps.api.middleware import RequestCorrelationMiddleware
-from apps.api.routes import health, intelligence, operations, policies, regions, replication, webhooks
-from contextlib import asynccontextmanager
+from fastapi import FastAPI  # noqa: E402
+from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
+from apps.api.config import get_settings  # noqa: E402
+from apps.api.exceptions import register_exception_handlers  # noqa: E402
+from apps.api.middleware import RequestCorrelationMiddleware  # noqa: E402
+from apps.api.routes import health, intelligence, operations, policies, regions, replication, webhooks  # noqa: E402
 
 
 

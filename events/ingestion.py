@@ -244,27 +244,38 @@ class EventIngestionService:
                 db_recs = self.event_repo.get_events_for_entity(entity_id)
                 for rec in db_recs:
                     if not any(e.id == rec.event_id or e.event_hash == rec.event_hash for e in mem_events):
-                        payload_dict = rec.payload_json if isinstance(rec.payload_json, dict) else {}
-                        money_obj = Money(amount_minor=rec.amount_minor or 0, currency=rec.currency or "INR")
+                        payload_dict: dict[str, Any] = rec.payload_json if isinstance(rec.payload_json, dict) else {}
+                        event_id_str = str(getattr(rec, "event_id", ""))
+                        event_hash_str = str(getattr(rec, "event_hash", ""))
+                        event_type_str = str(getattr(rec, "event_type", ""))
+                        entity_id_str = str(getattr(rec, "entity_id", ""))
+                        merchant_id_str = str(getattr(rec, "merchant_id", "mer_default"))
+                        amount_minor_val = int(getattr(rec, "amount_minor", 0) or 0)
+                        currency_str = str(getattr(rec, "currency", "INR") or "INR")
+                        occurred_at_val = getattr(rec, "occurred_at", None) or datetime.now(timezone.utc)
+                        received_at_val = getattr(rec, "received_at", None) or datetime.now(timezone.utc)
+                        seq_val = int(getattr(rec, "sequence_number", 1) or 1)
+
+                        money_obj = Money(amount_minor=amount_minor_val, currency=currency_str)
                         fe = FinancialEvent(
-                            id=rec.event_id,
-                            event_hash=rec.event_hash,
-                            event_type=rec.event_type,
+                            id=event_id_str,
+                            event_hash=event_hash_str,
+                            event_type=event_type_str,
                             gateway_event_id=payload_dict.get("event_id"),
-                            entity_id=rec.entity_id,
-                            order_id=payload_dict.get("order_id") or f"order_{rec.entity_id}",
-                            merchant_id=rec.merchant_id or "mer_default",
-                            customer_id=payload_dict.get("customer_id") or f"cust_{rec.entity_id}",
+                            entity_id=entity_id_str,
+                            order_id=payload_dict.get("order_id") or f"order_{entity_id_str}",
+                            merchant_id=merchant_id_str,
+                            customer_id=payload_dict.get("customer_id") or f"cust_{entity_id_str}",
                             amount=money_obj,
                             payload=payload_dict,
-                            occurred_at=rec.occurred_at,
-                            received_at=rec.received_at,
-                            sequence_number=rec.sequence_number or 1,
+                            occurred_at=occurred_at_val,
+                            received_at=received_at_val,
+                            sequence_number=seq_val,
                         )
                         mem_events.append(fe)
                         self.ingested_events.append(fe)
-                        if rec.event_hash:
-                            self.dedup_engine.register(rec.event_hash, rec.payload_json.get("event_id"))
+                        if event_hash_str:
+                            self.dedup_engine.register(event_hash_str, payload_dict.get("event_id"))
             except Exception as err:
                 logger.warning(f"Failed to load entity events from Firestore ({err}); falling back to memory")
 

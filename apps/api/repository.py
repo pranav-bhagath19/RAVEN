@@ -18,7 +18,7 @@ from domain.state.reconstructor import StateReconstructor
 from events.ingestion import EventIngestionService
 from ml.evaluation.models import BenchmarkReport
 from persistence.database import SessionLocal, init_db
-from persistence.firestore_store import FirestoreEventRepository, FirestorePaymentRepository
+from persistence.firestore_store import FirestorePaymentRepository
 from persistence.models import (
     DecisionTraceRecord,
     ToolExecutionRecord,
@@ -208,16 +208,17 @@ class OperationsRepository:
             p_repo = FirestorePaymentRepository()
             db_payments, _ = p_repo.list_payments(status=status, merchant_id=merchant_id, customer_id=customer_id, page=1, page_size=1000)
             for p in db_payments:
-                if payment_id and p.payment_id != payment_id:
+                pid = str(p.payment_id)
+                if payment_id and pid != payment_id:
                     continue
-                items_map[p.payment_id] = {
-                    "payment_id": p.payment_id,
-                    "order_id": p.order_id or f"order_{p.payment_id}",
-                    "merchant_id": p.merchant_id or "mer_default",
-                    "customer_id": p.customer_id or f"cust_{p.payment_id}",
-                    "amount_minor": p.amount_minor,
-                    "currency": p.currency,
-                    "status": p.status,
+                items_map[pid] = {
+                    "payment_id": pid,
+                    "order_id": str(p.order_id or f"order_{pid}"),
+                    "merchant_id": str(p.merchant_id or "mer_default"),
+                    "customer_id": str(p.customer_id or f"cust_{pid}"),
+                    "amount_minor": int(p.amount_minor or 0),
+                    "currency": str(p.currency or "INR"),
+                    "status": str(p.status),
                     "created_at": p.created_at,
                     "last_event_type": "payment.failed" if str(p.status).lower() == "failed" else None,
                     "recovery_status": "CLOSED" if str(p.status).lower() == "captured" else "OPEN",

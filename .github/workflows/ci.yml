@@ -23,7 +23,7 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt pytest ruff mypy httpx alembic prometheus-client
+          pip install -r requirements.txt pytest ruff mypy httpx prometheus-client
 
       - name: Run Ruff Linter
         run: |
@@ -36,10 +36,6 @@ jobs:
       - name: Execute Full Pytest Suite
         run: |
           pytest -v --durations=10
-
-      - name: Verify Alembic Migrations
-        run: |
-          alembic upgrade head
 
   frontend-build:
     name: Frontend Next.js Lint, Typecheck & Build

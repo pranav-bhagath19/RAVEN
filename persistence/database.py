@@ -111,8 +111,6 @@ class FirestoreQueryAdapter:
             FirestoreJobRepository,
             FirestoreMerchantPolicyRepository,
             FirestorePaymentRepository,
-            FirestoreToolExecutionRepository,
-            FirestoreVerificationRepository,
         )
 
         model_name = getattr(self.model_class, "__tablename__", self.model_class.__name__)
@@ -331,11 +329,8 @@ class FirestoreSessionAdapter:
 
     def commit(self) -> None:
         from persistence.firestore_store import (
-            FirestoreAPIKeyRepository,
             FirestoreDecisionRepository,
             FirestoreEventRepository,
-            FirestoreJobRepository,
-            FirestoreMerchantPolicyRepository,
             FirestorePaymentRepository,
             FirestoreToolExecutionRepository,
             FirestoreVerificationRepository,

@@ -2,6 +2,7 @@
 Unit Tests for Firestore Merchant Policy Lifecycle, Atomic Rollbacks, and Audit Logging
 """
 
+import uuid
 import pytest
 from domain.entities.merchant_policy import PolicyAuditAction, PolicyVersionStatus
 from persistence.firebase import reset_firestore_emulator
@@ -13,7 +14,6 @@ def setup_firestore():
     reset_firestore_emulator()
 
 
-import uuid
 def test_firestore_policy_versioning_and_activation():
     repo = FirestoreMerchantPolicyRepository()
     tenant_id = f"tenant_pol_{uuid.uuid4().hex[:8]}"

@@ -86,7 +86,7 @@ def run_phase_6_demo() -> None:
     # 3. Submit webhook to FastAPI endpoint using test client
     from apps.api.dependencies import get_webhook_service
     svc = get_webhook_service()
-    svc.webhook_secret = secret
+    svc._explicit_secret = secret
 
     client = TestClient(app)
     response = client.post(

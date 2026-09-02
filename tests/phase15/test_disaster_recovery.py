@@ -1,7 +1,4 @@
-"""
-Phase 15 Disaster Recovery & Failure Injection Tests
-"""
-
+import uuid
 from policies.failover import RegionalFailoverManager
 from persistence.redis_store import RedisIdempotencyStore
 from persistence.database import get_db
@@ -28,7 +25,6 @@ def test_disaster_recovery_stale_policy_sync():
     assert is_fresh is False
 
 
-import uuid
 def test_disaster_recovery_redis_fallback():
     """Verifies Redis disconnection triggers local idempotency fallback."""
     redis_store = RedisIdempotencyStore(redis_url="redis://invalid-host:6379/0")
