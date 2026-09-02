@@ -251,12 +251,15 @@ def get_firestore_client() -> Any:
     except Exception:
         pass
 
+    project_id = os.getenv("FIREBASE_PROJECT_ID", "raven--ai")
+    client_email = os.getenv("FIREBASE_CLIENT_EMAIL")
+    private_key = os.getenv("FIREBASE_PRIVATE_KEY")
+
     cred_raw = (
         os.getenv("FIREBASE_CREDENTIALS_JSON")
         or os.getenv("FIREBASE_CREDENTIALS")
         or os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
     )
-    project_id = os.getenv("FIREBASE_PROJECT_ID")
 
     # Auto-detect default service account JSON file in workspace root if present
     repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -264,7 +267,7 @@ def get_firestore_client() -> Any:
     if (not cred_raw or not os.path.exists(cred_raw)) and os.path.exists(root_service_account):
         cred_raw = root_service_account
 
-    if cred_raw or project_id:
+    if client_email or private_key or cred_raw or project_id:
         try:
             import base64
             import json
@@ -273,15 +276,36 @@ def get_firestore_client() -> Any:
 
             if not firebase_admin._apps:
                 cred_obj = None
-                if cred_raw:
+
+                # 1. Discrete individual environment variables (NO JSON required)
+                if client_email and private_key:
+                    clean_private_key = private_key.replace("\\n", "\n")
+                    cred_dict = {
+                        "type": os.getenv("FIREBASE_TYPE", "service_account"),
+                        "project_id": project_id,
+                        "private_key_id": os.getenv("FIREBASE_PRIVATE_KEY_ID", ""),
+                        "private_key": clean_private_key,
+                        "client_email": client_email,
+                        "client_id": os.getenv("FIREBASE_CLIENT_ID", ""),
+                        "auth_uri": os.getenv("FIREBASE_AUTH_URI", "https://accounts.google.com/o/oauth2/auth"),
+                        "token_uri": os.getenv("FIREBASE_TOKEN_URI", "https://oauth2.googleapis.com/token"),
+                        "auth_provider_x509_cert_url": os.getenv("FIREBASE_AUTH_PROVIDER_X509_CERT_URL", "https://www.googleapis.com/oauth2/v1/certs"),
+                        "client_x509_cert_url": os.getenv("FIREBASE_CLIENT_X509_CERT_URL", f"https://www.googleapis.com/robot/v1/metadata/x509/{client_email.replace('@', '%40')}"),
+                        "universe_domain": os.getenv("FIREBASE_UNIVERSE_DOMAIN", "googleapis.com"),
+                    }
+                    try:
+                        cred_obj = credentials.Certificate(cred_dict)
+                    except Exception as exc:
+                        print(f"[FIREBASE WARNING] Failed to parse discrete env variables ({exc})")
+
+                # 2. JSON string / base64 / file path fallback
+                if cred_obj is None and cred_raw:
                     s = cred_raw.strip()
-                    # 1. Direct JSON string
                     if s.startswith("{") and s.endswith("}"):
                         try:
                             cred_obj = credentials.Certificate(json.loads(s))
                         except Exception:
                             pass
-                    # 2. Base64 encoded JSON string
                     if cred_obj is None:
                         try:
                             decoded = base64.b64decode(s).decode("utf-8").strip()
@@ -289,7 +313,6 @@ def get_firestore_client() -> Any:
                                 cred_obj = credentials.Certificate(json.loads(decoded))
                         except Exception:
                             pass
-                    # 3. File path (relative or absolute)
                     if cred_obj is None:
                         if os.path.exists(s):
                             cred_obj = credentials.Certificate(s)
