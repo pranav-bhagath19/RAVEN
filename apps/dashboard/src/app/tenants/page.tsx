@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { fetchApi } from "@/lib/api";
-import { StatusBadge } from "@/components/StatusBadge";
-import { TableSkeleton } from "@/components/SkeletonLoader";
+import { fetchApi } from "../../lib/api";
+import { StatusBadge } from "../../components/StatusBadge";
+import { TableSkeleton } from "../../components/SkeletonLoader";
 import { Lock, ShieldCheck, Users } from "lucide-react";
 
 export default function TenantsPage() {

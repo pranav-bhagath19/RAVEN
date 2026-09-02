@@ -3,8 +3,8 @@
 import React, { useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { StatusBadge } from "@/components/StatusBadge";
-import { Modal } from "@/components/Modal";
+import { StatusBadge } from "../../../components/StatusBadge";
+import { Modal } from "../../../components/Modal";
 import { ArrowLeft, Clock, History, Play, RotateCcw, ShieldCheck, Sliders } from "lucide-react";
 
 export default function PolicyDetailPage() {

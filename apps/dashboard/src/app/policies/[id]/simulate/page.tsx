@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { StatusBadge } from "@/components/StatusBadge";
+import { StatusBadge } from "../../../../components/StatusBadge";
 import { ArrowLeft, Play, ShieldAlert, ShieldCheck, Zap } from "lucide-react";
 
 export default function PolicySimulatePage() {

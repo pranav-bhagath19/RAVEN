@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { fetchApi } from "@/lib/api";
-import { StatusBadge } from "@/components/StatusBadge";
+import { fetchApi } from "../../lib/api";
+import { StatusBadge } from "../../components/StatusBadge";
 import { Activity, CheckCircle2, Database, Globe, Layers, Mail, MessageSquare, RefreshCw, ShieldCheck, Zap } from "lucide-react";
 
 export default function OperationsPage() {

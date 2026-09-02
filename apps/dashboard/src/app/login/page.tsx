@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { setStoredAuth } from "@/lib/api";
+import { setStoredAuth } from "../../lib/api";
 import { ArrowRight, Eye, EyeOff, Key, Lock, ShieldCheck, Zap } from "lucide-react";
 
 export default function LoginPage() {

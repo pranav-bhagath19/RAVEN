@@ -2,9 +2,9 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { fetchApi } from "@/lib/api";
-import { StatusBadge } from "@/components/StatusBadge";
-import { KpiCard } from "@/components/KpiCard";
+import { fetchApi } from "../../lib/api";
+import { StatusBadge } from "../../components/StatusBadge";
+import { KpiCard } from "../../components/KpiCard";
 import { ArrowRight, BarChart3, Brain, Layers, ShieldCheck, TrendingUp, Zap } from "lucide-react";
 
 export default function IntelligencePage() {

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ShieldCheck, LogOut, Key, Building } from "lucide-react";
-import { getStoredAuth } from "@/lib/api";
+import { getStoredAuth } from "../lib/api";
 
 export default function Navbar() {
   const router = useRouter();

@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { getStoredAuth } from "@/lib/api";
+import { getStoredAuth } from "../lib/api";
 
 export default function RootIndexPage() {
   const router = useRouter();

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { StatusBadge } from "@/components/StatusBadge";
+import { StatusBadge } from "../../components/StatusBadge";
 import { CheckCircle2, Key, Lock, Mail, MessageSquare, Save, Settings, ShieldCheck, Sliders } from "lucide-react";
 
 export default function SettingsPage() {

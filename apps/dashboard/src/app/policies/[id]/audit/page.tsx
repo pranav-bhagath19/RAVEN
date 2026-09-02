@@ -3,7 +3,7 @@
 import React from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { StatusBadge } from "@/components/StatusBadge";
+import { StatusBadge } from "../../../../components/StatusBadge";
 import { ArrowLeft, Clock, History, ShieldCheck } from "lucide-react";
 
 export default function PolicyAuditPage() {

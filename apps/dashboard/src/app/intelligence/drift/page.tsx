@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { StatusBadge } from "@/components/StatusBadge";
+import { StatusBadge } from "../../../components/StatusBadge";
 import { ArrowLeft, TrendingUp, CheckCircle2, AlertTriangle } from "lucide-react";
 
 export default function DriftPage() {

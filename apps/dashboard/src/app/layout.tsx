@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Mulish, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import { Shell } from "@/components/Shell";
+import { Shell } from "../components/Shell";
 
 const mulish = Mulish({
   subsets: ["latin"],

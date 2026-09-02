@@ -2,9 +2,9 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { fetchApi } from "@/lib/api";
-import { StatusBadge } from "@/components/StatusBadge";
-import { TableSkeleton } from "@/components/SkeletonLoader";
+import { fetchApi } from "../../lib/api";
+import { StatusBadge } from "../../components/StatusBadge";
+import { TableSkeleton } from "../../components/SkeletonLoader";
 import { ExternalLink, Filter, Mail, MessageSquare, PhoneCall, RefreshCw, Send, Zap } from "lucide-react";
 
 interface RecoveryItem {

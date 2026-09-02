@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import { StatusBadge } from "@/components/StatusBadge";
-import { Modal } from "@/components/Modal";
+import { StatusBadge } from "../../components/StatusBadge";
+import { Modal } from "../../components/Modal";
 import { AlertTriangle, Lock, ShieldCheck, UserCheck, Users } from "lucide-react";
 
 export default function AdminPage() {

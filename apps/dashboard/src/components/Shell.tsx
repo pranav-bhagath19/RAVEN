@@ -27,7 +27,7 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { getStoredAuth } from "@/lib/api";
+import { getStoredAuth } from "../lib/api";
 
 interface ShellProps {
   children: React.ReactNode;

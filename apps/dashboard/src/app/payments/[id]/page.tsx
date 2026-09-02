@@ -3,9 +3,9 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { fetchApi } from "@/lib/api";
-import { DecisionLineage } from "@/components/DecisionLineage";
-import { StatusBadge } from "@/components/StatusBadge";
+import { fetchApi } from "../../../lib/api";
+import { DecisionLineage } from "../../../components/DecisionLineage";
+import { StatusBadge } from "../../../components/StatusBadge";
 import {
   AlertCircle,
   ArrowLeft,

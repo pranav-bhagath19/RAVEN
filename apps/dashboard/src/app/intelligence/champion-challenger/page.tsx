@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { StatusBadge } from "@/components/StatusBadge";
+import { StatusBadge } from "../../../components/StatusBadge";
 import { ArrowLeft, CheckCircle2, Layers, ShieldCheck, Zap } from "lucide-react";
 
 export default function ChampionChallengerPage() {
