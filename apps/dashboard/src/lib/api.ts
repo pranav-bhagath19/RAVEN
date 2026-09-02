@@ -1,9 +1,9 @@
 /**
  * RAVEN Next.js Frontend REST API Client
- * Connects directly to RAVEN FastAPI Control Plane endpoints.
+ * Connects directly to RAVEN FastAPI Control Plane endpoints (https://raven-wwex.onrender.com/api/v1).
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://raven-wwex.onrender.com/api/v1";
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://raven-wwex.onrender.com/api/v1";
 
 export interface UserSession {
   apiKey: string;
