@@ -251,21 +251,52 @@ def get_firestore_client() -> Any:
     except Exception:
         pass
 
-    cred_env = os.getenv("FIREBASE_CREDENTIALS") or os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-    cred_path = os.path.abspath(cred_env) if cred_env else None
+    cred_raw = (
+        os.getenv("FIREBASE_CREDENTIALS_JSON")
+        or os.getenv("FIREBASE_CREDENTIALS")
+        or os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+    )
     project_id = os.getenv("FIREBASE_PROJECT_ID")
 
-    if cred_path or project_id:
+    if cred_raw or project_id:
         try:
+            import base64
+            import json
             import firebase_admin  # type: ignore[import-untyped]
             from firebase_admin import credentials, firestore  # type: ignore[import-untyped]
 
             if not firebase_admin._apps:
-                if cred_path and os.path.exists(cred_path):
-                    cred = credentials.Certificate(cred_path)
-                    firebase_admin.initialize_app(cred, {"projectId": project_id} if project_id else None)
+                cred_obj = None
+                if cred_raw:
+                    s = cred_raw.strip()
+                    # 1. Direct JSON string
+                    if s.startswith("{") and s.endswith("}"):
+                        try:
+                            cred_obj = credentials.Certificate(json.loads(s))
+                        except Exception:
+                            pass
+                    # 2. Base64 encoded JSON string
+                    if cred_obj is None:
+                        try:
+                            decoded = base64.b64decode(s).decode("utf-8").strip()
+                            if decoded.startswith("{") and decoded.endswith("}"):
+                                cred_obj = credentials.Certificate(json.loads(decoded))
+                        except Exception:
+                            pass
+                    # 3. File path (relative or absolute)
+                    if cred_obj is None:
+                        if os.path.exists(s):
+                            cred_obj = credentials.Certificate(s)
+                        else:
+                            abs_p = os.path.abspath(s)
+                            if os.path.exists(abs_p):
+                                cred_obj = credentials.Certificate(abs_p)
+
+                if cred_obj:
+                    firebase_admin.initialize_app(cred_obj, {"projectId": project_id} if project_id else None)
                 else:
                     firebase_admin.initialize_app(options={"projectId": project_id} if project_id else None)
+
             _firebase_db_instance = firestore.client()
             _firebase_initialized = True
             print(f"[FIREBASE] Connected to live Cloud Firestore (Project: {project_id or 'default'})")
