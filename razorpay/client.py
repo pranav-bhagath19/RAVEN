@@ -32,13 +32,11 @@ class BaseRazorpayClient(ABC):
 
     @abstractmethod
     def fetch_payment(self, payment_id: str) -> dict[str, Any]:
-        """Fetches payment entity from Razorpay API."""
-        pass
+        """Fetches payment entity from Razorpay API by payment ID."""
 
     @abstractmethod
-    def fetch_order(self, order_id: str) -> dict[str, Any]:
-        """Fetches order entity from Razorpay API."""
-        pass
+    def capture_payment(self, payment_id: str, amount_minor: int, currency: str = "INR") -> dict[str, Any]:
+        """Captures an authorized payment."""
 
     @abstractmethod
     def create_payment_link(
@@ -50,12 +48,10 @@ class BaseRazorpayClient(ABC):
         currency: str = "INR",
     ) -> dict[str, Any]:
         """Creates payment link with mandatory idempotency key."""
-        pass
 
     @abstractmethod
     def get_payment_status(self, payment_id: str) -> str:
         """Returns string status of payment (captured, failed, authorized, refunded)."""
-        pass
 
 
 class MockRazorpayClient(BaseRazorpayClient):
@@ -78,6 +74,15 @@ class MockRazorpayClient(BaseRazorpayClient):
             "status": "failed",
             "error_code": "GATEWAY_TIMED_OUT",
             "error_description": "Mock payment failure fetch response",
+        }
+
+    def capture_payment(self, payment_id: str, amount_minor: int, currency: str = "INR") -> dict[str, Any]:
+        return {
+            "id": payment_id,
+            "entity": "payment",
+            "amount": amount_minor,
+            "currency": currency,
+            "status": "captured",
         }
 
     def fetch_order(self, order_id: str) -> dict[str, Any]:

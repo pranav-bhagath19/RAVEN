@@ -46,7 +46,7 @@ def test_valid_structured_llm_output():
 
 
 def test_confidence_bounds_validation():
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError):
         RootCauseAnalysis(
             payment_id="pay_test",
             root_cause="TIMED_OUT",

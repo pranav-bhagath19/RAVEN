@@ -7,6 +7,9 @@ Prevents timing attacks and payload tampering.
 
 import hashlib
 import hmac
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def verify_razorpay_webhook_signature(
@@ -30,5 +33,6 @@ def verify_razorpay_webhook_signature(
         ).hexdigest()
 
         return hmac.compare_digest(expected_signature.lower(), signature.strip().lower())
-    except Exception:
+    except Exception as err:
+        logger.warning(f"Signature verification failed due to exception: {err!s}")
         return False

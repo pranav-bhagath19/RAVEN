@@ -14,8 +14,6 @@ T = TypeVar("T")
 class CircuitBreakerOpenError(Exception):
     """Exception raised when circuit breaker is OPEN."""
 
-    pass
-
 
 class CircuitBreaker:
     """
@@ -53,10 +51,10 @@ class CircuitBreaker:
                     self.state = "CLOSED"
                     self.failure_count = 0
             return result
-        except Exception as exc:
+        except Exception:
             with self._lock:
                 self.failure_count += 1
                 if self.failure_count >= self.failure_threshold:
                     self.state = "OPEN"
                     self.last_state_change = time.time()
-            raise exc
+            raise

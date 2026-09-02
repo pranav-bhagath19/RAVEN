@@ -46,7 +46,7 @@ def run_smoke_test() -> bool:
         status = client.get_payment_status("pay_test_smoke_1")
         print(f"  [OK] Successfully connected to Razorpay Test Mode! Response status: {status}")
     except Exception as e:
-        print(f"  [FAIL] Failed to communicate with Razorpay Test Mode API: {str(e)}")
+        print(f"  [FAIL] Failed to communicate with Razorpay Test Mode API: {e!s}")
         return False
 
     print("  [STEP 2/2] Generating test payment link via Razorpay Test Mode REST API...")
@@ -59,7 +59,7 @@ def run_smoke_test() -> bool:
         )
         print(f"  [OK] Payment link created! Link ID: {link.get('id')} | URL: {link.get('short_url')}")
     except Exception as e:
-        print(f"  [FAIL] Failed to create payment link: {str(e)}")
+        print(f"  [FAIL] Failed to create payment link: {e!s}")
         return False
 
     print()

@@ -6,10 +6,13 @@ with a thread-safe local in-memory fallback for local demo and offline testing e
 Preserves complete class and signature compatibility for existing callers.
 """
 
+import logging
 import threading
 import time
 from typing import Any
 from persistence.firebase import get_firestore_client
+
+logger = logging.getLogger(__name__)
 
 
 class LocalIdempotencyStore:
@@ -111,8 +114,8 @@ class RedisIdempotencyStore:
                     "created_at": now,
                 })
                 return True
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Firestore claim failed, falling back to local store: {e!s}")
         return self._local_fallback.claim(key, ttl_seconds=ttl_seconds)
 
     def exists(self, key: str) -> bool:
@@ -125,8 +128,8 @@ class RedisIdempotencyStore:
                     d = doc.to_dict()
                     if d.get("expires_at", 0) > time.time():
                         return True
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Firestore exists check failed: {e!s}")
         return self._local_fallback.exists(key)
 
     def release(self, key: str) -> None:
@@ -136,8 +139,8 @@ class RedisIdempotencyStore:
                 doc_id = self._sanitize_doc_id(key)
                 self.collection.document(doc_id).delete()
                 return
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Firestore release failed: {e!s}")
         self._local_fallback.release(key)
 
     def mark_completed(self, key: str, value: Any = True, ttl_seconds: int = 86400) -> None:
@@ -154,8 +157,8 @@ class RedisIdempotencyStore:
                     "updated_at": now,
                 })
                 return
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Firestore mark_completed failed: {e!s}")
         self._local_fallback.mark_completed(key, value=value, ttl_seconds=ttl_seconds)
 
     def get_completed_value(self, key: str) -> Any | None:
@@ -169,6 +172,6 @@ class RedisIdempotencyStore:
                     if d.get("expires_at", 0) > time.time() and d.get("status") == "COMPLETED":
                         return d.get("value")
                 return None
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Firestore get_completed_value failed: {e!s}")
         return self._local_fallback.get_completed_value(key)

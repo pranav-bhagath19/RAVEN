@@ -64,7 +64,7 @@ def start_tunnel(port: int = 8000) -> None:
         print("\nStopping ngrok tunnel...")
         sys.exit(0)
     except Exception as e:
-        err_msg = str(e)
+        err_msg = f"{e!s}"
         print(f"\n[FAIL] Failed to establish ngrok tunnel: {err_msg}")
         if "ERR_NGROK_15013" in err_msg or "dev domain" in err_msg:
             print()

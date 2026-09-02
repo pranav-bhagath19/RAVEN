@@ -5,9 +5,12 @@ Proves end-to-end reliability, Firestore persistence, deduplication, signature s
 tenant isolation, state reconstruction, and dashboard API visibility for Razorpay webhooks.
 """
 
-import hmac
+import copy
 import hashlib
+import hmac
 import json
+import time
+import uuid
 import pytest
 from fastapi.testclient import TestClient
 from apps.api.main import app
@@ -279,10 +282,6 @@ def test_9_state_reconstruction_from_persisted_events():
 
 
 # TEST 10: Persisted failed payment -> dashboard API returns it.
-import copy
-import time
-import uuid
-
 def test_10_dashboard_api_returns_persisted_payment(monkeypatch):
     monkeypatch.setenv("RAZORPAY_WEBHOOK_SECRET", TEST_WEBHOOK_SECRET)
     unique_suffix = uuid.uuid4().hex[:8]
