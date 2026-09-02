@@ -258,6 +258,12 @@ def get_firestore_client() -> Any:
     )
     project_id = os.getenv("FIREBASE_PROJECT_ID")
 
+    # Auto-detect default service account JSON file in workspace root if present
+    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    root_service_account = os.path.join(repo_root, "firebase_service_account.json")
+    if (not cred_raw or not os.path.exists(cred_raw)) and os.path.exists(root_service_account):
+        cred_raw = root_service_account
+
     if cred_raw or project_id:
         try:
             import base64
@@ -295,7 +301,9 @@ def get_firestore_client() -> Any:
                 if cred_obj:
                     firebase_admin.initialize_app(cred_obj, {"projectId": project_id} if project_id else None)
                 else:
-                    firebase_admin.initialize_app(options={"projectId": project_id} if project_id else None)
+                    # No credential object could be loaded; fall back cleanly without noisy ADC warnings
+                    _firebase_db_instance = _emulator_instance
+                    return _firebase_db_instance
 
             _firebase_db_instance = firestore.client()
             _firebase_initialized = True
