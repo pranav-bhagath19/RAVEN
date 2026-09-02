@@ -61,6 +61,26 @@ class LiveRazorpayClient(BaseRazorpayClient):
             return res_dict
         except httpx.TimeoutException as exc:
             logger.warning(f"Razorpay timeout fetching payment {payment_id}: {exc}")
+    def capture_payment(self, payment_id: str, amount_minor: int, currency: str = "INR") -> dict[str, Any]:
+        """Captures an authorized payment via Razorpay REST API."""
+        if self._is_placeholder():
+            return self._mock_fallback.capture_payment(payment_id, amount_minor, currency)
+
+        url = f"{self.base_url}/payments/{payment_id}/capture"
+        payload = {"amount": amount_minor, "currency": currency}
+        try:
+            response = httpx.post(url, auth=(self.key_id, self.key_secret), json=payload, timeout=self.timeout)
+            if response.status_code != 200:
+                err_json = response.json().get("error", {})
+                raise RazorpayAPIError(
+                    status_code=response.status_code,
+                    error_code=err_json.get("code", "BAD_REQUEST"),
+                    message=err_json.get("description", "Razorpay API error"),
+                )
+            res_dict: dict[str, Any] = response.json()
+            return res_dict
+        except httpx.TimeoutException as exc:
+            logger.warning(f"Razorpay timeout capturing payment {payment_id}: {exc}")
             raise RazorpayTimeoutError(endpoint=url, timeout_seconds=self.timeout) from exc
 
     def fetch_order(self, order_id: str) -> dict[str, Any]:
