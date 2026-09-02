@@ -35,47 +35,7 @@ export default function PaymentsPage() {
         setLoading(false);
       })
       .catch(() => {
-        setPayments([
-          {
-            payment_id: "pay_card_decline_101",
-            order_id: "order_99812",
-            merchant_id: "mer_demo",
-            customer_id: "cust_3812",
-            amount_minor: 149900,
-            currency: "INR",
-            status: "FAILED",
-            error_code: "BAD_REQUEST_PAYMENT_DECLINED",
-            created_at: new Date().toISOString(),
-            recovery_status: "IN_PROGRESS",
-            recommended_action: "PAYMENT_LINK",
-          },
-          {
-            payment_id: "pay_insufficient_funds_202",
-            order_id: "order_99813",
-            merchant_id: "mer_demo",
-            customer_id: "cust_4120",
-            amount_minor: 299900,
-            currency: "INR",
-            status: "FAILED",
-            error_code: "INSUFFICIENT_FUNDS",
-            created_at: new Date().toISOString(),
-            recovery_status: "RECOVERED",
-            recommended_action: "SMART_RETRY",
-          },
-          {
-            payment_id: "pay_otp_timeout_303",
-            order_id: "order_99814",
-            merchant_id: "mer_demo",
-            customer_id: "cust_9011",
-            amount_minor: 500000,
-            currency: "INR",
-            status: "RECOVERED",
-            error_code: "GATEWAY_TIMEOUT",
-            created_at: new Date().toISOString(),
-            recovery_status: "RECOVERED",
-            recommended_action: "FALLBACK_NOTIFY",
-          },
-        ]);
+        setPayments([]);
         setLoading(false);
       });
   }, []);

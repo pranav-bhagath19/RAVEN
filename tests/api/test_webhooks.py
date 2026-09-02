@@ -5,6 +5,7 @@ Integration Tests for Razorpay Webhook Ingestion Router (Section 15 Specificatio
 import hashlib
 import hmac
 import json
+import uuid
 import pytest
 from fastapi.testclient import TestClient
 from apps.api.dependencies import get_webhook_service
@@ -118,6 +119,7 @@ def test_3_duplicate_payment_failed_accepted(api_client):
 
 
 def test_4_payment_failed_followed_by_payment_captured(api_client):
+    pay_id = f"pay_seq_{uuid.uuid4().hex[:8]}"
     fail_payload = {
         "entity": "event",
         "account_id": "acc_mer_seq",
@@ -125,7 +127,7 @@ def test_4_payment_failed_followed_by_payment_captured(api_client):
         "payload": {
             "payment": {
                 "entity": {
-                    "id": "pay_seq_100",
+                    "id": pay_id,
                     "entity": "payment",
                     "amount": 200000,
                     "currency": "INR",
@@ -144,7 +146,7 @@ def test_4_payment_failed_followed_by_payment_captured(api_client):
         "payload": {
             "payment": {
                 "entity": {
-                    "id": "pay_seq_100",
+                    "id": pay_id,
                     "entity": "payment",
                     "amount": 200000,
                     "currency": "INR",

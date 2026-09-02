@@ -2,6 +2,7 @@
 Tests for Phase 9 Distributed Idempotency & Lock Coordination
 """
 
+import uuid
 from persistence.redis_store import LocalIdempotencyStore, RedisIdempotencyStore
 
 
@@ -29,10 +30,11 @@ def test_local_idempotency_store_completion():
 def test_redis_idempotency_store_fallback():
     # Tests that RedisIdempotencyStore operates seamlessly even without a Redis server
     store = RedisIdempotencyStore(redis_url="redis://localhost:6379/15")
+    key = f"redis_key_{uuid.uuid4().hex[:8]}"
 
-    claimed = store.claim("redis_key_1", ttl_seconds=60)
+    claimed = store.claim(key, ttl_seconds=60)
     assert claimed is True
 
-    assert store.claim("redis_key_1", ttl_seconds=60) is False
-    store.mark_completed("redis_key_1", value="OK")
-    assert store.get_completed_value("redis_key_1") == "OK"
+    assert store.claim(key, ttl_seconds=60) is False
+    store.mark_completed(key, value="OK")
+    assert store.get_completed_value(key) == "OK"

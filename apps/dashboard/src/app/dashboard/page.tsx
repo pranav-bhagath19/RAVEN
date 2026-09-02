@@ -40,31 +40,46 @@ interface OverviewData {
 
 export default function DashboardPage() {
   const [overview, setOverview] = useState<OverviewData | null>(null);
+  const [payments, setPayments] = useState<any[]>([]);
+  const [decisions, setDecisions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState("30D");
 
   useEffect(() => {
-    fetchApi<OverviewData>("/operations/overview")
-      .then((data) => {
-        setOverview(data);
-        setLoading(false);
-      })
-      .catch(() => {
-        // Safe backend fallback for presentation
+    Promise.all([
+      fetchApi<OverviewData>("/operations/overview").catch(() => null),
+      fetchApi<any>("/operations/payments").catch(() => null),
+      fetchApi<any>("/operations/decisions").catch(() => null),
+    ]).then(([overviewRes, paymentsRes, decisionsRes]) => {
+      if (overviewRes) {
+        setOverview(overviewRes);
+      } else {
         setOverview({
-          revenue_at_risk_minor: 9547000,
-          revenue_recovered_minor: 4848600,
-          recovery_rate_pct: 46.67,
-          revenue_recovery_value_rate_pct: 50.79,
-          failed_payments: 30,
-          actions_attempted: 21,
-          successful_recoveries: 14,
-          policy_veto_count: 9,
+          revenue_at_risk_minor: 0,
+          revenue_recovered_minor: 0,
+          recovery_rate_pct: 0,
+          revenue_recovery_value_rate_pct: 0,
+          failed_payments: 0,
+          actions_attempted: 0,
+          successful_recoveries: 0,
+          policy_veto_count: 0,
           duplicate_execution_count: 0,
-          average_decision_latency_seconds: 0.0012,
+          average_decision_latency_seconds: 0,
         });
-        setLoading(false);
-      });
+      }
+
+      const paymentList = Array.isArray(paymentsRes)
+        ? paymentsRes
+        : paymentsRes?.items || [];
+      setPayments(paymentList.slice(0, 5));
+
+      const decisionList = Array.isArray(decisionsRes)
+        ? decisionsRes
+        : decisionsRes?.items || [];
+      setDecisions(decisionList.slice(0, 5));
+
+      setLoading(false);
+    });
   }, []);
 
   const formatINR = (minorUnits: number) => {
@@ -197,24 +212,28 @@ export default function DashboardPage() {
           </div>
 
           <div className="space-y-3">
-            {[
-              { id: "pay_card_decline_101", amount: 149900, status: "FAILED", err: "BAD_REQUEST_PAYMENT_DECLINED" },
-              { id: "pay_insufficient_funds_202", amount: 299900, status: "FAILED", err: "INSUFFICIENT_FUNDS" },
-              { id: "pay_otp_timeout_303", amount: 500000, status: "RECOVERED", err: "GATEWAY_TIMEOUT" },
-            ].map((item) => (
-              <div key={item.id} className="p-3 bg-slate-50 border border-slate-200/80 rounded-lg flex items-center justify-between">
-                <div>
-                  <span className="font-mono text-xs font-bold text-slate-800">{item.id}</span>
-                  <span className="block text-[11px] font-semibold text-slate-500 mt-0.5">{item.err}</span>
-                </div>
-                <div className="text-right">
-                  <span className="font-mono text-xs font-bold text-slate-900">{formatINR(item.amount)}</span>
-                  <div className="mt-1">
-                    <StatusBadge status={item.status} />
+            {payments.length === 0 ? (
+              <div className="p-4 text-center text-xs text-slate-400 font-medium">
+                No failed payments recorded yet.
+              </div>
+            ) : (
+              payments.map((item) => (
+                <div key={item.payment_id} className="p-3 bg-slate-50 border border-slate-200/80 rounded-lg flex items-center justify-between">
+                  <div>
+                    <span className="font-mono text-xs font-bold text-slate-800">{item.payment_id}</span>
+                    <span className="block text-[11px] font-semibold text-slate-500 mt-0.5">
+                      {item.error_code || "BAD_REQUEST_PAYMENT_DECLINED"}
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-mono text-xs font-bold text-slate-900">{formatINR(item.amount_minor || 0)}</span>
+                    <div className="mt-1">
+                      <StatusBadge status={item.status} />
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
@@ -230,25 +249,27 @@ export default function DashboardPage() {
           </div>
 
           <div className="space-y-3">
-            {[
-              { dec: "dec_101", pay: "pay_card_decline_101", action: "PAYMENT_LINK", status: "APPROVED", tok: "tok_hmac_991823" },
-              { dec: "dec_102", pay: "pay_insufficient_funds_202", action: "SMART_RETRY", status: "APPROVED", tok: "tok_hmac_771239" },
-              { dec: "dec_103", pay: "pay_high_value_909", action: "ESCALATE_TO_HUMAN", status: "VETOED", tok: "POL_001_VETO" },
-            ].map((item) => (
-              <div key={item.dec} className="p-3 bg-slate-50 border border-slate-200/80 rounded-lg flex items-center justify-between">
-                <div>
-                  <div className="flex items-center space-x-2">
-                    <span className="font-mono text-xs font-bold text-slate-900">{item.dec}</span>
-                    <span className="text-[10px] text-slate-400 font-mono">({item.pay})</span>
-                  </div>
-                  <span className="block text-[11px] font-semibold text-slate-600 mt-0.5">{item.action}</span>
-                </div>
-                <div className="text-right">
-                  <StatusBadge status={item.status} />
-                  <span className="block text-[10px] font-mono text-slate-400 mt-1">{item.tok}</span>
-                </div>
+            {decisions.length === 0 ? (
+              <div className="p-4 text-center text-xs text-slate-400 font-medium">
+                No decision traces recorded yet.
               </div>
-            ))}
+            ) : (
+              decisions.map((item) => (
+                <div key={item.decision_id || item.trace_id} className="p-3 bg-slate-50 border border-slate-200/80 rounded-lg flex items-center justify-between">
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <span className="font-mono text-xs font-bold text-slate-900">{item.decision_id || item.trace_id}</span>
+                      <span className="text-[10px] text-slate-400 font-mono">({item.payment_id})</span>
+                    </div>
+                    <span className="block text-[11px] font-semibold text-slate-600 mt-0.5">{item.selected_action_type || item.recommended_action}</span>
+                  </div>
+                  <div className="text-right">
+                    <StatusBadge status={item.policy_decision || item.status} />
+                    <span className="block text-[10px] font-mono text-slate-400 mt-1">{item.policy_token_id || "POL_VETO"}</span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>

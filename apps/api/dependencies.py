@@ -4,7 +4,11 @@ RAVEN API Gateway Dependencies Injector
 Provides FastAPI dependency providers for WebhookService, OperationsService, PolicyService, AgentOrchestrator, and PolicyEngine.
 """
 
+import os
 from functools import lru_cache
+from dotenv import load_dotenv
+load_dotenv()
+
 from apps.api.operations_service import OperationsService
 from apps.api.policy_service import PolicyService
 from apps.api.repository import OperationsRepository

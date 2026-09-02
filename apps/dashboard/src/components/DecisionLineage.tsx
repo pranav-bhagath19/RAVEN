@@ -16,7 +16,7 @@ interface DecisionLineageProps {
 }
 
 export function DecisionLineage({
-  paymentId = "pay_demo_101",
+  paymentId = "",
   rootCause = "INSUFFICIENT_FUNDS",
   actionType = "PAYMENT_LINK",
   propensityScore = 0.84,

@@ -2,14 +2,33 @@
 RAVEN FastAPI Gateway Application Entry Point
 """
 
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from apps.api.config import get_settings
+
 from apps.api.exceptions import register_exception_handlers
+
 from apps.api.middleware import RequestCorrelationMiddleware
 from apps.api.routes import health, intelligence, operations, policies, regions, replication, webhooks
+from contextlib import asynccontextmanager
+
+
 
 settings = get_settings()
+
+@asynccontextmanager
+
+async def lifespan(app: FastAPI):
+    from persistence.database import init_db
+    try:
+        init_db()
+    except Exception as e:
+        import logging
+        logging.getLogger("raven.api").warning(f"Startup DB init warning: {e}")
+    yield
 
 app = FastAPI(
     title="RAVEN — Revenue-aware Autonomous Verification & ENgine API",
@@ -17,7 +36,9 @@ app = FastAPI(
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
+
 
 # Attach request correlation middleware
 app.add_middleware(RequestCorrelationMiddleware)

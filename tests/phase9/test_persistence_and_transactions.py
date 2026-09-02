@@ -2,6 +2,7 @@
 Tests for Phase 9 Database Persistence & Transactional Integrity
 """
 
+import uuid
 import pytest
 from persistence.database import SessionLocal, engine, init_db
 from persistence.models import Base
@@ -20,7 +21,7 @@ def test_payment_repository_upsert_and_retrieve():
     repo = PaymentRepository(db)
 
     data = {
-        "payment_id": "pay_p9_100",
+        "payment_id": f"pay_p9_{uuid.uuid4().hex[:8]}",
         "order_id": "order_p9_100",
         "merchant_id": "mer_p9_100",
         "customer_id": "cust_p9_100",
@@ -30,9 +31,9 @@ def test_payment_repository_upsert_and_retrieve():
         "error_code": "GATEWAY_TIMED_OUT",
     }
     rec = repo.upsert_payment(data)
-    assert rec.payment_id == "pay_p9_100"
+    assert rec.payment_id == data["payment_id"]
 
-    fetched = repo.get_by_id("pay_p9_100")
+    fetched = repo.get_by_id(data["payment_id"])
     assert fetched is not None
     assert fetched.amount_minor == 500000
 
@@ -44,12 +45,13 @@ def test_payment_repository_upsert_and_retrieve():
 def test_event_repository_transactional_deduplication():
     db = SessionLocal()
     repo = EventRepository(db)
+    uid = uuid.uuid4().hex[:8]
 
     evt_data = {
-        "event_id": "evt_p9_100",
-        "event_hash": "hash_canonical_p9_100",
+        "event_id": f"evt_p9_{uid}",
+        "event_hash": f"hash_canonical_p9_{uid}",
         "event_type": "payment.failed",
-        "entity_id": "pay_p9_dedup",
+        "entity_id": f"pay_p9_dedup_{uid}",
         "merchant_id": "mer_p9_100",
         "amount_minor": 100000,
         "currency": "INR",

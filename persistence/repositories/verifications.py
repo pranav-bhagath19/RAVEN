@@ -1,25 +1,22 @@
 """
 RAVEN Verification Database Repository
+
+Firestore-backed repository implementation for Verification outcomes.
 """
 
 from typing import Any
-from sqlalchemy.orm import Session
+from persistence.firestore_store import FirestoreVerificationRepository
 from persistence.models import VerificationRecord
 
 
 class VerificationRepository:
-    """SQLAlchemy Repository for Verification outcomes."""
+    """Repository for Verification outcomes backed by Firestore."""
 
-    def __init__(self, db: Session):
-        self.db = db
+    def __init__(self, db: Any = None) -> None:
+        self._store = FirestoreVerificationRepository()
 
     def save_verification(self, verification_data: dict[str, Any]) -> VerificationRecord:
-        """Saves a VerificationRecord."""
-        record = VerificationRecord(**verification_data)
-        self.db.add(record)
-        self.db.commit()
-        self.db.refresh(record)
-        return record
+        return self._store.save_verification(verification_data)
 
     def list_verifications(
         self,
@@ -28,14 +25,9 @@ class VerificationRepository:
         page: int = 1,
         page_size: int = 50,
     ) -> tuple[list[VerificationRecord], int]:
-        """Returns paginated Verification records."""
-        query = self.db.query(VerificationRecord)
-        if payment_id:
-            query = query.filter(VerificationRecord.payment_id == payment_id)
-        if recovery_type:
-            query = query.filter(VerificationRecord.recovery_type == recovery_type)
-
-        total = query.count()
-        offset = (page - 1) * page_size
-        items = query.order_by(VerificationRecord.verified_at.desc()).offset(offset).limit(page_size).all()
-        return items, total
+        return self._store.list_verifications(
+            payment_id=payment_id,
+            recovery_type=recovery_type,
+            page=page,
+            page_size=page_size,
+        )

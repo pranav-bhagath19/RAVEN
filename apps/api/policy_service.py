@@ -7,7 +7,6 @@ and audit log retrieval.
 """
 
 from typing import Any
-from sqlalchemy.orm import Session
 from domain.entities.merchant_policy import MerchantPolicyVersion, PolicyAuditLog
 from ml.evaluation.runner import BenchmarkRunner
 from persistence.repositories.policies import MerchantPolicyRepository
@@ -40,7 +39,7 @@ class PolicyService:
     Enforces transactional activation, lineage-preserving rollback, and dry-run policy simulation.
     """
 
-    def __init__(self, db: Session) -> None:
+    def __init__(self, db: Any) -> None:
         self.db = db
         self.repo = MerchantPolicyRepository(db)
 

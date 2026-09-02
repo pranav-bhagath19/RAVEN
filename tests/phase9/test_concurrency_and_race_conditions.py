@@ -2,6 +2,7 @@
 Tests for Phase 9 Concurrency & Race Condition Protection
 """
 
+import uuid
 import concurrent.futures
 import pytest
 from persistence.database import SessionLocal, engine, init_db
@@ -16,11 +17,12 @@ def setup_database():
 
 
 def test_20_concurrent_duplicate_events():
+    uid = uuid.uuid4().hex[:8]
     evt_data = {
-        "event_id": "evt_concurrent_100",
-        "event_hash": "hash_concurrent_unique_100",
+        "event_id": f"evt_concurrent_{uid}",
+        "event_hash": f"hash_concurrent_unique_{uid}",
         "event_type": "payment.failed",
-        "entity_id": "pay_concurrent_100",
+        "entity_id": f"pay_concurrent_{uid}",
         "merchant_id": "mer_concurrent_100",
         "amount_minor": 100000,
         "currency": "INR",

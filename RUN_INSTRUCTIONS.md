@@ -114,7 +114,7 @@ python -c "from apps.worker.worker import RecoveryWorker; RecoveryWorker().run_l
 
 ## 3. Running via Docker Compose (All-in-One)
 
-Docker Compose starts PostgreSQL, Redis, API Gateway, Background Worker, and Frontend Dashboard simultaneously in isolated containers.
+Docker Compose starts API Gateway, Background Worker, Frontend Dashboard, and Ngrok Tunnel simultaneously in isolated containers, connecting to Firebase Firestore.
 
 ```bash
 # Build and start all services in foreground
@@ -137,8 +137,8 @@ docker-compose down
 ### Container Endpoints:
 - **Frontend Dashboard**: `http://localhost:3000`
 - **Backend API**: `http://localhost:8000`
-- **PostgreSQL**: `localhost:5432`
-- **Redis**: `localhost:6379`
+- **Ngrok Webhook Tunnel**: `http://localhost:4040` (Dashboard UI)
+- **Database**: Firebase Cloud Firestore (`raven--ai`)
 
 ---
 
@@ -282,7 +282,7 @@ python scripts/start_ngrok_tunnel.py
 | **Backend API** | `python -m apps.api.main` | Project Root | `http://localhost:8000` |
 | **Frontend UI** | `npm run dev` | `apps/dashboard` | `http://localhost:3000` |
 | **Worker Process** | `python -c "from apps.worker.worker import RecoveryWorker; RecoveryWorker().run_loop()"` | Project Root | Background Loop |
-| **Docker Full Stack** | `docker-compose up --build` | Project Root | Containers for API, UI, Worker, Postgres, Redis |
+| **Docker Full Stack** | `docker-compose up --build` | Project Root | Containers for API, UI, Worker, Ngrok (Firebase DB) |
 | **Ngrok Tunnel** | `python scripts/start_ngrok_tunnel.py` | Project Root | Exposes `:8000` for Razorpay Webhooks |
 | **Main Pipeline Demo** | `python scripts/demo.py` | Project Root | 15 Failure Scenarios |
 | **Security Demo** | `python scripts/security_demo.py` | Project Root | 9 Attack Vectors Rejection |

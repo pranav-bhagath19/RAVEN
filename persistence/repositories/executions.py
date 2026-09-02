@@ -1,32 +1,22 @@
 """
 RAVEN Tool Execution Database Repository
+
+Firestore-backed repository implementation for Tool Execution audit logs.
 """
 
 from typing import Any
-from sqlalchemy.orm import Session
+from persistence.firestore_store import FirestoreToolExecutionRepository
 from persistence.models import ToolExecutionRecord
 
 
 class ExecutionRepository:
-    """SQLAlchemy Repository for Tool Execution audit logs."""
+    """Repository for Tool Execution audit logs backed by Firestore."""
 
-    def __init__(self, db: Session):
-        self.db = db
+    def __init__(self, db: Any = None) -> None:
+        self._store = FirestoreToolExecutionRepository()
 
     def save_execution(self, execution_data: dict[str, Any]) -> ToolExecutionRecord:
-        """Saves a ToolExecution record."""
-        eid = execution_data["execution_id"]
-        record = self.db.query(ToolExecutionRecord).filter(ToolExecutionRecord.execution_id == eid).first()
-        if not record:
-            record = ToolExecutionRecord(**execution_data)
-            self.db.add(record)
-        else:
-            for key, value in execution_data.items():
-                if hasattr(record, key):
-                    setattr(record, key, value)
-        self.db.commit()
-        self.db.refresh(record)
-        return record
+        return self._store.save_execution(execution_data)
 
     def list_executions(
         self,
@@ -36,16 +26,10 @@ class ExecutionRepository:
         page: int = 1,
         page_size: int = 50,
     ) -> tuple[list[ToolExecutionRecord], int]:
-        """Returns paginated ToolExecution records."""
-        query = self.db.query(ToolExecutionRecord)
-        if payment_id:
-            query = query.filter(ToolExecutionRecord.payment_id == payment_id)
-        if tool_name:
-            query = query.filter(ToolExecutionRecord.tool_name == tool_name)
-        if status:
-            query = query.filter(ToolExecutionRecord.status == status)
-
-        total = query.count()
-        offset = (page - 1) * page_size
-        items = query.order_by(ToolExecutionRecord.executed_at.desc()).offset(offset).limit(page_size).all()
-        return items, total
+        return self._store.list_executions(
+            payment_id=payment_id,
+            tool_name=tool_name,
+            status=status,
+            page=page,
+            page_size=page_size,
+        )

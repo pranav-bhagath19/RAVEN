@@ -6,6 +6,7 @@ and providing thread-safe in-memory fallback for local demo and offline testing.
 """
 
 import json
+import logging
 import os
 import threading
 from typing import Any
@@ -17,6 +18,7 @@ from domain.state.reconstructor import StateReconstructor
 from events.ingestion import EventIngestionService
 from ml.evaluation.models import BenchmarkReport
 from persistence.database import SessionLocal, init_db
+from persistence.firestore_store import FirestoreEventRepository, FirestorePaymentRepository
 from persistence.models import (
     DecisionTraceRecord,
     ToolExecutionRecord,
@@ -24,6 +26,8 @@ from persistence.models import (
 )
 from policies.rules import get_registered_policies
 from tools.executor import ToolExecutor
+
+logger = logging.getLogger("raven.repository")
 
 
 class OperationsRepository:
@@ -50,8 +54,8 @@ class OperationsRepository:
 
         try:
             init_db()
-        except Exception:
-            pass
+        except Exception as err:
+            logger.warning(f"Database initialization notice ({err})")
 
     def record_trace(self, trace: DecisionTrace) -> None:
         """Stores DecisionTrace snapshot in memory and DB."""
@@ -80,8 +84,8 @@ class OperationsRepository:
                 db.add(rec)
                 db.commit()
             db.close()
-        except Exception:
-            pass
+        except Exception as err:
+            logger.warning(f"Failed to persist DecisionTrace to DB ({err})")
 
     def record_tool_execution(self, record: dict[str, Any]) -> None:
         """Stores tool execution audit log in memory and DB."""
@@ -103,8 +107,8 @@ class OperationsRepository:
             db.add(rec)
             db.commit()
             db.close()
-        except Exception:
-            pass
+        except Exception as err:
+            logger.warning(f"Failed to persist ToolExecutionRecord to DB ({err})")
 
     def record_verification(self, record: dict[str, Any]) -> None:
         """Stores verification outcome log in memory and DB."""
@@ -124,33 +128,29 @@ class OperationsRepository:
             db.add(rec)
             db.commit()
             db.close()
-        except Exception:
-            pass
+        except Exception as err:
+            logger.warning(f"Failed to persist VerificationRecord to DB ({err})")
 
     def get_overview_stats(self) -> dict[str, Any]:
         """Calculates aggregate operational metrics across observed entities."""
         with self._lock:
+            payments_summary, _ = self.get_payments(page=1, page_size=1000)
             events = self.ingestion_service.ingested_events
-            payment_ids = {e.entity_id for e in events}
 
-            total_payments = len(payment_ids)
+            total_payments = len(payments_summary)
             failed_count = 0
             recovered_count = 0
             total_risk_minor = 0
             total_recovered_minor = 0
             total_cost_minor = 0
 
-            for pid in payment_ids:
-                p_events = [e for e in events if e.entity_id == pid]
-                if not p_events:
-                    continue
-                payment = self.reconstructor.reconstruct_payment_state(pid, p_events)
-
-                amt = payment.amount.amount_minor if payment.amount else 0
-                if payment.status in (PaymentStatus.FAILED, PaymentStatus.AMBIGUOUS):
+            for p in payments_summary:
+                amt = p.get("amount_minor", 0)
+                st = str(p.get("status", "")).lower()
+                if st in ("failed", "ambiguous"):
                     failed_count += 1
                     total_risk_minor += amt
-                elif payment.status == PaymentStatus.CAPTURED:
+                elif st == "captured":
                     recovered_count += 1
                     total_recovered_minor += amt
 
@@ -200,15 +200,39 @@ class OperationsRepository:
         page: int = 1,
         page_size: int = 50,
     ) -> tuple[list[dict[str, Any]], int]:
-        """Returns paginated payment summary items."""
+        """Returns paginated payment summary items combining persistent DB and memory."""
+        items_map: dict[str, dict[str, Any]] = {}
+
+        # 1. Query Firestore Payment Repository
+        try:
+            p_repo = FirestorePaymentRepository()
+            db_payments, _ = p_repo.list_payments(status=status, merchant_id=merchant_id, customer_id=customer_id, page=1, page_size=1000)
+            for p in db_payments:
+                if payment_id and p.payment_id != payment_id:
+                    continue
+                items_map[p.payment_id] = {
+                    "payment_id": p.payment_id,
+                    "order_id": p.order_id or f"order_{p.payment_id}",
+                    "merchant_id": p.merchant_id or "mer_default",
+                    "customer_id": p.customer_id or f"cust_{p.payment_id}",
+                    "amount_minor": p.amount_minor,
+                    "currency": p.currency,
+                    "status": p.status,
+                    "created_at": p.created_at,
+                    "last_event_type": "payment.failed" if str(p.status).lower() == "failed" else None,
+                    "recovery_status": "CLOSED" if str(p.status).lower() == "captured" else "OPEN",
+                }
+        except Exception as err:
+            logger.warning(f"Failed to load payments from Firestore ({err})")
+
+        # 2. Reconstruct from ingestion_service events
         events = self.ingestion_service.ingested_events
         payment_ids = sorted(list({e.entity_id for e in events}))
 
-        items: list[dict[str, Any]] = []
         for pid in payment_ids:
             if payment_id and pid != payment_id:
                 continue
-            p_events = [e for e in events if e.entity_id == pid]
+            p_events = self.ingestion_service.get_events_for_entity(pid)
             if not p_events:
                 continue
             payment = self.reconstructor.reconstruct_payment_state(pid, p_events)
@@ -221,18 +245,21 @@ class OperationsRepository:
                 continue
 
             last_evt = p_events[-1] if p_events else None
-            items.append({
+            items_map[payment.id] = {
                 "payment_id": payment.id,
-                "order_id": payment.order_id,
-                "merchant_id": payment.merchant_id,
-                "customer_id": payment.customer_id,
+                "order_id": payment.order_id or f"order_{payment.id}",
+                "merchant_id": payment.merchant_id or "mer_default",
+                "customer_id": payment.customer_id or f"cust_{payment.id}",
                 "amount_minor": payment.amount.amount_minor if payment.amount else 0,
                 "currency": payment.amount.currency if payment.amount else "INR",
                 "status": payment.status.value,
                 "created_at": payment.created_at,
                 "last_event_type": last_evt.event_type if last_evt else None,
                 "recovery_status": "CLOSED" if payment.status == PaymentStatus.CAPTURED else "OPEN",
-            })
+            }
+
+        items = list(items_map.values())
+        items.sort(key=lambda x: str(x.get("created_at", "")), reverse=True)
 
         total = len(items)
         start = (page - 1) * page_size
@@ -242,7 +269,35 @@ class OperationsRepository:
     def get_payment_detail(self, payment_id: str) -> dict[str, Any] | None:
         """Returns detailed payment object including reconstructed state and trace reference."""
         events = self.ingestion_service.get_events_for_entity(payment_id)
+
         if not events:
+            # Fallback to Firestore Payment Record if events list is empty
+            try:
+                p_repo = FirestorePaymentRepository()
+                p_rec = p_repo.get_by_id(payment_id)
+                if p_rec:
+                    traces = [t for t in self._traces.values() if t.payment_id == payment_id]
+                    latest_trace = traces[-1] if traces else None
+                    return {
+                        "payment_id": p_rec.payment_id,
+                        "order_id": p_rec.order_id,
+                        "merchant_id": p_rec.merchant_id,
+                        "customer_id": p_rec.customer_id,
+                        "amount_minor": p_rec.amount_minor,
+                        "currency": p_rec.currency,
+                        "status": p_rec.status,
+                        "attempts_count": p_rec.attempts_count,
+                        "error_code": p_rec.error_code,
+                        "error_description": p_rec.error_description,
+                        "events": [],
+                        "candidate_actions": latest_trace.candidate_actions if latest_trace else [],
+                        "policy_decision": latest_trace.policy_evaluations[-1] if (latest_trace and latest_trace.policy_evaluations) else None,
+                        "execution_result": latest_trace.execution_result if latest_trace else None,
+                        "verification_result": latest_trace.verification_result if latest_trace else None,
+                        "latest_trace_id": latest_trace.decision_id if latest_trace else None,
+                    }
+            except Exception as err:
+                logger.warning(f"Failed to fetch payment detail from Firestore ({err})")
             return None
 
         payment = self.reconstructor.reconstruct_payment_state(payment_id, events)
@@ -250,8 +305,8 @@ class OperationsRepository:
         latest_trace = traces[-1] if traces else None
 
         last_evt = events[-1] if events else None
-        err_code = last_evt.payload.get("error_code") if last_evt and last_evt.payload else None
-        err_desc = last_evt.payload.get("error_description") if last_evt and last_evt.payload else None
+        err_code = last_evt.payload.get("error_code") if last_evt and isinstance(last_evt.payload, dict) else None
+        err_desc = last_evt.payload.get("error_description") if last_evt and isinstance(last_evt.payload, dict) else None
 
         return {
             "payment_id": payment.id,
@@ -271,6 +326,7 @@ class OperationsRepository:
             "verification_result": latest_trace.verification_result if latest_trace else None,
             "latest_trace_id": latest_trace.decision_id if latest_trace else None,
         }
+
 
     def get_events(
         self,

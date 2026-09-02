@@ -57,6 +57,7 @@ raven_local.db
 .env.production.local
 *.pem
 *.key
+firebase_service_account.json
 secrets/
 
 # IDE / OS

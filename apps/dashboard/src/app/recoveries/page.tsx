@@ -23,56 +23,25 @@ export default function RecoveriesPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchApi<any>("/operations/events")
+    fetchApi<any>("/operations/tool-executions")
       .then((res) => {
         const list = Array.isArray(res) ? res : res?.items || [];
         setRecoveries(
-          list.map((e: any, idx: number) => ({
-            recovery_id: `rec_${e.event_id || idx + 100}`,
-            payment_id: e.entity_id || `pay_recovery_${idx + 1}`,
-            customer_id: `cust_${1000 + idx}`,
-            channel: idx % 3 === 0 ? "WHATSAPP" : idx % 2 === 0 ? "EMAIL" : "SMS",
-            action_type: idx % 3 === 0 ? "PAYMENT_LINK" : "SMART_RETRY",
-            status: idx % 4 === 0 ? "ATTRIBUTED" : "COMPLETED",
-            amount_minor: 149900 * (idx + 1),
-            created_at: new Date().toISOString(),
+          list.map((item: any) => ({
+            recovery_id: item.execution_id || item.action_id || `rec_${item.payment_id}`,
+            payment_id: item.payment_id,
+            customer_id: item.parameters?.customer_id || "cust_active",
+            channel: item.tool_name?.includes("WHATSAPP") ? "WHATSAPP" : item.tool_name?.includes("EMAIL") ? "EMAIL" : "RAZORPAY_API",
+            action_type: item.tool_name || "SMART_RETRY",
+            status: item.status || "EXECUTED",
+            amount_minor: item.parameters?.amount_minor || 0,
+            created_at: item.executed_at || new Date().toISOString(),
           }))
         );
         setLoading(false);
       })
       .catch(() => {
-        setRecoveries([
-          {
-            recovery_id: "rec_9901",
-            payment_id: "pay_card_decline_101",
-            customer_id: "cust_3812",
-            channel: "WHATSAPP",
-            action_type: "PAYMENT_LINK",
-            status: "ATTRIBUTED",
-            amount_minor: 149900,
-            created_at: new Date().toISOString(),
-          },
-          {
-            recovery_id: "rec_9902",
-            payment_id: "pay_insufficient_funds_202",
-            customer_id: "cust_4120",
-            channel: "SMS",
-            action_type: "SMART_RETRY",
-            status: "ATTRIBUTED",
-            amount_minor: 299900,
-            created_at: new Date().toISOString(),
-          },
-          {
-            recovery_id: "rec_9903",
-            payment_id: "pay_otp_timeout_303",
-            customer_id: "cust_9011",
-            channel: "EMAIL",
-            action_type: "FALLBACK_NOTIFY",
-            status: "COMPLETED",
-            amount_minor: 500000,
-            created_at: new Date().toISOString(),
-          },
-        ]);
+        setRecoveries([]);
         setLoading(false);
       });
   }, []);
@@ -113,34 +82,42 @@ export default function RecoveriesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {recoveries.map((r) => (
-                <tr key={r.recovery_id} className="hover:bg-slate-50/80 transition-colors">
-                  <td className="p-3.5 font-mono font-bold text-slate-900">{r.recovery_id}</td>
-                  <td className="p-3.5 font-mono text-blue-600 font-semibold">{r.payment_id}</td>
-                  <td className="p-3.5">
-                    <span className="inline-flex items-center font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                      {getChannelIcon(r.channel)}
-                      {r.channel}
-                    </span>
-                  </td>
-                  <td className="p-3.5 font-semibold text-slate-800">{r.action_type}</td>
-                  <td className="p-3.5 font-mono font-bold text-slate-900">
-                    ₹{(r.amount_minor / 100).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                  </td>
-                  <td className="p-3.5">
-                    <StatusBadge status={r.status} />
-                  </td>
-                  <td className="p-3.5 text-right">
-                    <Link
-                      href={`/payments/${r.payment_id}`}
-                      className="inline-flex items-center space-x-1 text-blue-600 hover:text-blue-800 font-semibold"
-                    >
-                      <span>Trace</span>
-                      <ExternalLink className="w-3 h-3" />
-                    </Link>
+              {recoveries.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="p-8 text-center text-xs text-slate-400 font-medium">
+                    No active recovery executions recorded yet.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                recoveries.map((r) => (
+                  <tr key={r.recovery_id} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="p-3.5 font-mono font-bold text-slate-900">{r.recovery_id}</td>
+                    <td className="p-3.5 font-mono text-blue-600 font-semibold">{r.payment_id}</td>
+                    <td className="p-3.5">
+                      <span className="inline-flex items-center font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                        {getChannelIcon(r.channel)}
+                        {r.channel}
+                      </span>
+                    </td>
+                    <td className="p-3.5 font-semibold text-slate-800">{r.action_type}</td>
+                    <td className="p-3.5 font-mono font-bold text-slate-900">
+                      ₹{(r.amount_minor / 100).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                    </td>
+                    <td className="p-3.5">
+                      <StatusBadge status={r.status} />
+                    </td>
+                    <td className="p-3.5 text-right">
+                      <Link
+                        href={`/payments/${r.payment_id}`}
+                        className="inline-flex items-center space-x-1 text-blue-600 hover:text-blue-800 font-semibold"
+                      >
+                        <span>Trace</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </Link>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

@@ -19,38 +19,7 @@ export default function DecisionsPage() {
         setLoading(false);
       })
       .catch(() => {
-        setTraces([
-          {
-            decision_id: "dec_101",
-            payment_id: "pay_card_decline_101",
-            tenant_id: "tenant_demo",
-            policy_decision: "APPROVED",
-            selected_action_type: "PAYMENT_LINK",
-            policy_token_id: "tok_hmac_991823",
-            expected_value_minor: 125916,
-            created_at: new Date().toISOString(),
-          },
-          {
-            decision_id: "dec_102",
-            payment_id: "pay_insufficient_funds_202",
-            tenant_id: "tenant_demo",
-            policy_decision: "APPROVED",
-            selected_action_type: "SMART_RETRY",
-            policy_token_id: "tok_hmac_771239",
-            expected_value_minor: 251916,
-            created_at: new Date().toISOString(),
-          },
-          {
-            decision_id: "dec_103",
-            payment_id: "pay_high_value_909",
-            tenant_id: "tenant_demo",
-            policy_decision: "VETOED",
-            selected_action_type: "ESCALATE_TO_HUMAN",
-            policy_token_id: "POL_001_VETO",
-            expected_value_minor: 0,
-            created_at: new Date().toISOString(),
-          },
-        ]);
+        setTraces([]);
         setLoading(false);
       });
   }, []);
@@ -83,35 +52,43 @@ export default function DecisionsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {traces.map((t) => (
-                <tr key={t.decision_id} className="hover:bg-slate-50/80 transition-colors">
-                  <td className="p-3.5 font-mono font-bold text-slate-900">{t.decision_id}</td>
-                  <td className="p-3.5 font-mono text-blue-600 font-semibold">{t.payment_id}</td>
-                  <td className="p-3.5">
-                    <span className="bg-slate-100 text-slate-800 font-semibold px-2 py-0.5 rounded text-[11px] border border-slate-200">
-                      {t.selected_action_type}
-                    </span>
-                  </td>
-                  <td className="p-3.5">
-                    <StatusBadge status={t.policy_decision} />
-                  </td>
-                  <td className="p-3.5 font-mono font-bold text-slate-800">
-                    ₹{((t.expected_value_minor || 0) / 100).toFixed(2)}
-                  </td>
-                  <td className="p-3.5 font-mono text-[11px] text-purple-700 bg-purple-50/60 px-2 py-0.5 rounded border border-purple-200/60 w-fit">
-                    {t.policy_token_id}
-                  </td>
-                  <td className="p-3.5 text-right">
-                    <Link
-                      href={`/payments/${t.payment_id}`}
-                      className="inline-flex items-center space-x-1 text-blue-600 hover:text-blue-800 font-semibold"
-                    >
-                      <span>Lineage</span>
-                      <ArrowRight className="w-3 h-3" />
-                    </Link>
+              {traces.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="p-8 text-center text-xs text-slate-400 font-medium">
+                    No decision traces recorded yet.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                traces.map((t) => (
+                  <tr key={t.decision_id || t.trace_id} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="p-3.5 font-mono font-bold text-slate-900">{t.decision_id || t.trace_id}</td>
+                    <td className="p-3.5 font-mono text-blue-600 font-semibold">{t.payment_id}</td>
+                    <td className="p-3.5">
+                      <span className="bg-slate-100 text-slate-800 font-semibold px-2 py-0.5 rounded text-[11px] border border-slate-200">
+                        {t.selected_action_type || t.selected_action || "SMART_RETRY"}
+                      </span>
+                    </td>
+                    <td className="p-3.5">
+                      <StatusBadge status={t.policy_decision} />
+                    </td>
+                    <td className="p-3.5 font-mono font-bold text-slate-800">
+                      ₹{((t.expected_value_minor || 0) / 100).toFixed(2)}
+                    </td>
+                    <td className="p-3.5 font-mono text-[11px] text-purple-700 bg-purple-50/60 px-2 py-0.5 rounded border border-purple-200/60 w-fit">
+                      {t.policy_token_id || "POL_VETO"}
+                    </td>
+                    <td className="p-3.5 text-right">
+                      <Link
+                        href={`/payments/${t.payment_id}`}
+                        className="inline-flex items-center space-x-1 text-blue-600 hover:text-blue-800 font-semibold"
+                      >
+                        <span>Lineage</span>
+                        <ArrowRight className="w-3 h-3" />
+                      </Link>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

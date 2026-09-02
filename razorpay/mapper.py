@@ -22,9 +22,11 @@ class RazorpayWebhookMapper:
     def map_to_canonical_event(
         raw_payload: dict[str, Any],
         received_at: datetime | None = None,
+        event_id_override: str | None = None,
     ) -> FinancialEvent:
         """
         Maps a raw Razorpay webhook payload dict into a canonical FinancialEvent entity.
+        Supports X-Razorpay-Event-Id header override if present.
         """
         # Parse Pydantic envelope model
         envelope = RazorpayWebhookPayload.model_validate(raw_payload)
@@ -32,7 +34,7 @@ class RazorpayWebhookMapper:
 
         # Derive event IDs and timestamps
         event_name = envelope.event.lower()
-        gateway_event_id = f"evt_{envelope.account_id}_{envelope.created_at}"
+        gateway_event_id = event_id_override or f"evt_{envelope.account_id}_{envelope.created_at}"
 
         if payment_entity:
             payment_id = payment_entity.id

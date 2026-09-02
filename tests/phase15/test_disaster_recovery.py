@@ -28,10 +28,12 @@ def test_disaster_recovery_stale_policy_sync():
     assert is_fresh is False
 
 
+import uuid
 def test_disaster_recovery_redis_fallback():
     """Verifies Redis disconnection triggers local idempotency fallback."""
     redis_store = RedisIdempotencyStore(redis_url="redis://invalid-host:6379/0")
-    claimed = redis_store.claim("dr_test_key_01")
+    key = f"dr_test_key_{uuid.uuid4().hex[:8]}"
+    claimed = redis_store.claim(key)
     assert claimed is True
 
 

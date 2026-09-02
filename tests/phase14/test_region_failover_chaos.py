@@ -6,6 +6,7 @@ Explicitly proves section 19 requirements:
 2. Distributed idempotency prevents double execution across failover regions.
 """
 
+import uuid
 from datetime import datetime, timezone
 from domain.entities.region import Region
 from domain.entities.replication import PolicyReplicationState
@@ -53,9 +54,10 @@ def test_regional_failover_success():
 def test_cross_region_idempotency_protection():
     """Proves scoped regional idempotency store prevents duplicate execution across failover."""
     store = RedisIdempotencyStore()
+    idem_key = f"idem_key_{uuid.uuid4().hex[:8]}"
 
-    key_region_a = RedisIdempotencyStore.make_regional_key("tenant_failover_test", "idem_key_99", "ap-south-1")
-    key_region_b = RedisIdempotencyStore.make_regional_key("tenant_failover_test", "idem_key_99", "us-east-1")
+    key_region_a = RedisIdempotencyStore.make_regional_key("tenant_failover_test", idem_key, "ap-south-1")
+    key_region_b = RedisIdempotencyStore.make_regional_key("tenant_failover_test", idem_key, "us-east-1")
 
     # Claim action in Region A
     claimed_a = store.claim(key_region_a)

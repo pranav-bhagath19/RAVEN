@@ -17,38 +17,7 @@ export default function TenantsPage() {
         setLoading(false);
       })
       .catch(() => {
-        setTenants([
-          {
-            tenant_id: "tenant_demo",
-            name: "Razorpay Demo Merchant",
-            status: "ACTIVE",
-            failed_payments: 30,
-            revenue_at_risk_minor: 9547000,
-            recovered_revenue_minor: 4848600,
-            recovery_rate_pct: 50.79,
-            active_policy: "POL_001_DEFAULT",
-          },
-          {
-            tenant_id: "tenant_acme",
-            name: "Acme SaaS Technologies",
-            status: "ACTIVE",
-            failed_payments: 14,
-            revenue_at_risk_minor: 4500000,
-            recovered_revenue_minor: 2250000,
-            recovery_rate_pct: 50.0,
-            active_policy: "POL_001_STRICT",
-          },
-          {
-            tenant_id: "tenant_global",
-            name: "Global E-Commerce Corp",
-            status: "ACTIVE",
-            failed_payments: 55,
-            revenue_at_risk_minor: 18200000,
-            recovered_revenue_minor: 9100000,
-            recovery_rate_pct: 50.0,
-            active_policy: "POL_001_DEFAULT",
-          },
-        ]);
+        setTenants([]);
         setLoading(false);
       });
   }, []);
@@ -91,23 +60,31 @@ export default function TenantsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {tenants.map((t) => (
-                <tr key={t.tenant_id} className="hover:bg-slate-50/80 transition-colors">
-                  <td className="p-3.5 font-mono font-bold text-blue-600">{t.tenant_id}</td>
-                  <td className="p-3.5 font-semibold text-slate-900">{t.name}</td>
-                  <td className="p-3.5 font-mono text-slate-700">{t.failed_payments}</td>
-                  <td className="p-3.5 font-mono font-bold text-slate-900">
-                    ₹{(t.revenue_at_risk_minor / 100).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                  </td>
-                  <td className="p-3.5 font-mono font-bold text-emerald-600">
-                    ₹{(t.recovered_revenue_minor / 100).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-                  </td>
-                  <td className="p-3.5 font-mono font-bold text-blue-600">{t.recovery_rate_pct}%</td>
-                  <td className="p-3.5 text-right">
-                    <StatusBadge status={t.status || "ACTIVE"} />
+              {tenants.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="p-8 text-center text-xs text-slate-400 font-medium">
+                    No merchant tenants registered yet.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                tenants.map((t) => (
+                  <tr key={t.tenant_id} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="p-3.5 font-mono font-bold text-blue-600">{t.tenant_id}</td>
+                    <td className="p-3.5 font-semibold text-slate-900">{t.name}</td>
+                    <td className="p-3.5 font-mono text-slate-700">{t.failed_payments}</td>
+                    <td className="p-3.5 font-mono font-bold text-slate-900">
+                      ₹{(t.revenue_at_risk_minor / 100).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                    </td>
+                    <td className="p-3.5 font-mono font-bold text-emerald-600">
+                      ₹{(t.recovered_revenue_minor / 100).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                    </td>
+                    <td className="p-3.5 font-mono font-bold text-blue-600">{t.recovery_rate_pct}%</td>
+                    <td className="p-3.5 text-right">
+                      <StatusBadge status={t.status || "ACTIVE"} />
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

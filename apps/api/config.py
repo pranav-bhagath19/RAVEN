@@ -7,7 +7,10 @@ Ensures secrets are never hardcoded or exposed in logs/APIs.
 
 import os
 from typing import Any
+from dotenv import load_dotenv
 from pydantic import BaseModel, Field
+
+load_dotenv()
 
 
 class Settings(BaseModel):

@@ -38,7 +38,7 @@ def start_tunnel(port: int = 8000) -> None:
         if domain:
             kwargs["domain"] = domain
 
-        listener = ngrok.forward(port, **kwargs)
+        listener = ngrok.forward(port, **kwargs)  # type: ignore[arg-type]
         public_url = listener.url()
         webhook_url = f"{public_url}/api/v1/webhooks/razorpay"
 

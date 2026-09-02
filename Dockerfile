@@ -12,10 +12,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy project requirement files if present or install dependencies
+# Copy project requirements and install dependencies
+COPY requirements.txt /app/
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy project source code
 COPY . /app/
 
-RUN pip install --no-cache-dir fastapi uvicorn pydantic pydantic-settings httpx pytest ruff mypy
 
 # Expose API Gateway port
 EXPOSE 8000

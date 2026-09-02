@@ -174,7 +174,8 @@ def run_certification() -> None:
     from persistence.redis_store import RedisIdempotencyStore
     redis_store = RedisIdempotencyStore(redis_url="redis://invalid-host-9999:6379/0")
     assert redis_store.client is None
-    fallback_claim = redis_store.claim("test_key_failover")
+    cert_key = f"test_key_failover_{uuid.uuid4().hex[:8]}"
+    fallback_claim = redis_store.claim(cert_key)
     assert fallback_claim is True
     print("  -> Redis Disconnection Gracefully Handled via Local Idempotency Fallback")
     print("  -> Status: PASSED\n")

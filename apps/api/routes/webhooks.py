@@ -24,6 +24,7 @@ router = APIRouter(prefix="/api/v1/webhooks", tags=["Webhooks"])
 async def ingest_razorpay_webhook(
     request: Request,
     x_razorpay_signature: str | None = Header(default=None, alias="X-Razorpay-Signature"),
+    x_razorpay_event_id: str | None = Header(default=None, alias="X-Razorpay-Event-Id"),
     webhook_service: WebhookService = Depends(get_webhook_service),
 ) -> WebhookResponse | JSONResponse:
     """
@@ -32,10 +33,12 @@ async def ingest_razorpay_webhook(
     """
     raw_body = await request.body()
     sig = x_razorpay_signature or request.headers.get("x-razorpay-signature")
+    event_id = x_razorpay_event_id or request.headers.get("x-razorpay-event-id")
 
     try:
-        response = webhook_service.process_razorpay_webhook(raw_body=raw_body, signature=sig)
+        response = webhook_service.process_razorpay_webhook(raw_body=raw_body, signature=sig, event_id_header=event_id)
         return response
+
     except WebhookProcessingError as e:
         return JSONResponse(
             status_code=e.status_code,

@@ -38,7 +38,7 @@ export function Shell({ children }: ShellProps) {
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [testMode, setTestMode] = useState(true);
-  const [auth, setAuth] = useState({ apiKey: "admin_dev_key", tenantId: "tenant_demo", role: "ADMIN" });
+  const [auth, setAuth] = useState({ apiKey: "", tenantId: "", role: "" });
 
   useEffect(() => {
     if (typeof window !== "undefined") {

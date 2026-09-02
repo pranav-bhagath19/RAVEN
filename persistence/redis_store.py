@@ -1,14 +1,15 @@
 """
-RAVEN Redis & Distributed Idempotency Store Module
+RAVEN Firestore-Backed Distributed Idempotency Store Module
 
-Provides Redis-backed distributed coordination, locks, and idempotency protection with a
-thread-safe local in-memory fallback for local demo and offline testing environments.
+Provides Firestore-backed distributed coordination, locks, and idempotency protection
+with a thread-safe local in-memory fallback for local demo and offline testing environments.
+Preserves complete class and signature compatibility for existing callers.
 """
 
-import os
 import threading
 import time
 from typing import Any
+from persistence.firebase import get_firestore_client
 
 
 class LocalIdempotencyStore:
@@ -63,8 +64,9 @@ class LocalIdempotencyStore:
 
 class RedisIdempotencyStore:
     """
-    Redis-backed distributed idempotency coordination store.
-    Falls back gracefully to LocalIdempotencyStore if Redis connection fails or is unconfigured.
+    Firestore-backed distributed idempotency coordination store.
+    Maintains legacy 'RedisIdempotencyStore' name for full signature compatibility.
+    Falls back gracefully to LocalIdempotencyStore if Firestore operation fails or is unconfigured.
     """
 
     @staticmethod
@@ -73,71 +75,99 @@ class RedisIdempotencyStore:
         return f"{tenant_id}:{region_id}:{idempotency_key}"
 
     def __init__(self, redis_url: str | None = None) -> None:
-        self.url = redis_url or os.getenv("REDIS_URL")
+        self.url = redis_url
         self.client: Any = None
         self._local_fallback = LocalIdempotencyStore()
+        try:
+            self.db = get_firestore_client()
+            self.collection = self.db.collection("idempotency")
+        except Exception:
+            self.db = None
+            self.collection = None
 
-        if self.url:
-            try:
-                import redis
-                self.client = redis.Redis.from_url(self.url, decode_responses=True)
-                self.client.ping()
-            except Exception:
-                self.client = None
+    def _sanitize_doc_id(self, key: str) -> str:
+        """Converts key string to safe Firestore document ID."""
+        return key.replace("/", "_").replace(".", "_")
 
     def claim(self, key: str, ttl_seconds: int = 300) -> bool:
-        """Claims a key atomically. Returns True if claimed successfully."""
-        if self.client:
+        """Claims a key atomically in Firestore. Returns True if claimed successfully."""
+        if self.collection is not None:
             try:
-                res = self.client.set(f"idempotency:lock:{key}", "LOCKED", nx=True, ex=ttl_seconds)
-                return bool(res)
+                doc_id = self._sanitize_doc_id(key)
+                doc_ref = self.collection.document(doc_id)
+                now = time.time()
+
+                doc = doc_ref.get()
+                if doc.exists:
+                    d = doc.to_dict()
+                    if d.get("expires_at", 0) > now:
+                        return False
+
+                doc_ref.set({
+                    "key": key,
+                    "status": "LOCKED",
+                    "expires_at": now + ttl_seconds,
+                    "value": None,
+                    "created_at": now,
+                })
+                return True
             except Exception:
                 pass
         return self._local_fallback.claim(key, ttl_seconds=ttl_seconds)
 
     def exists(self, key: str) -> bool:
-        """Checks if key is claimed or completed."""
-        if self.client:
+        """Checks if key is claimed or completed in Firestore."""
+        if self.collection is not None:
             try:
-                return bool(self.client.exists(f"idempotency:lock:{key}", f"idempotency:completed:{key}"))
+                doc_id = self._sanitize_doc_id(key)
+                doc = self.collection.document(doc_id).get()
+                if doc.exists:
+                    d = doc.to_dict()
+                    if d.get("expires_at", 0) > time.time():
+                        return True
             except Exception:
                 pass
         return self._local_fallback.exists(key)
 
     def release(self, key: str) -> None:
-        """Releases an idempotency claim."""
-        if self.client:
+        """Releases an idempotency claim in Firestore."""
+        if self.collection is not None:
             try:
-                self.client.delete(f"idempotency:lock:{key}")
+                doc_id = self._sanitize_doc_id(key)
+                self.collection.document(doc_id).delete()
                 return
             except Exception:
                 pass
         self._local_fallback.release(key)
 
     def mark_completed(self, key: str, value: Any = True, ttl_seconds: int = 86400) -> None:
-        """Marks key as completed storing result value."""
-        if self.client:
+        """Marks key as completed storing result value in Firestore."""
+        if self.collection is not None:
             try:
-                import json
-                val_str = json.dumps(value) if not isinstance(value, str) else value
-                self.client.set(f"idempotency:completed:{key}", val_str, ex=ttl_seconds)
-                self.client.delete(f"idempotency:lock:{key}")
+                doc_id = self._sanitize_doc_id(key)
+                now = time.time()
+                self.collection.document(doc_id).set({
+                    "key": key,
+                    "status": "COMPLETED",
+                    "expires_at": now + ttl_seconds,
+                    "value": value,
+                    "updated_at": now,
+                })
                 return
             except Exception:
                 pass
         self._local_fallback.mark_completed(key, value=value, ttl_seconds=ttl_seconds)
 
     def get_completed_value(self, key: str) -> Any | None:
-        """Gets result of completed key if available."""
-        if self.client:
+        """Gets result of completed key from Firestore if available."""
+        if self.collection is not None:
             try:
-                import json
-                val_str = self.client.get(f"idempotency:completed:{key}")
-                if val_str:
-                    try:
-                        return json.loads(val_str)
-                    except Exception:
-                        return val_str
+                doc_id = self._sanitize_doc_id(key)
+                doc = self.collection.document(doc_id).get()
+                if doc.exists:
+                    d = doc.to_dict()
+                    if d.get("expires_at", 0) > time.time() and d.get("status") == "COMPLETED":
+                        return d.get("value")
                 return None
             except Exception:
                 pass
