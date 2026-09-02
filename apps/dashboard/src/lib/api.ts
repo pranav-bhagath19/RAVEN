@@ -1,9 +1,9 @@
 /**
  * RAVEN Next.js Frontend REST API Client
- * Connects directly to RAVEN FastAPI Control Plane endpoints (defaulting to http://localhost:8000/api/v1).
+ * Connects directly to RAVEN FastAPI Control Plane endpoints.
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 export interface UserSession {
   apiKey: string;
